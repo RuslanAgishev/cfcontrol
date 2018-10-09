@@ -30,6 +30,7 @@ imp_pose_prev = np.array( [0,0,0] )
 imp_vel_prev = np.array( [0,0,0] )
 imp_time_prev = time.time()
 rotated = False
+impedance = False
 DIST = 0.5 # start distance between drones
 
 
@@ -37,9 +38,13 @@ def joy_cb(joystick):
 	global raw
 	global column
 	global width
+	global imp_on
+	global imp_off
 	raw = joystick.buttons[3]
 	column = joystick.buttons[2]
 	width = joystick.axes[1]
+	imp_on = joystick.buttons[0]
+	imp_off = joystick.buttons[1]
 
 
 # def tag_game(human, cf1):
@@ -55,13 +60,10 @@ def tag_game(human, cf1, cf2):
 	global imp_vel_prev
 	global imp_time_prev
 	global rotated
+	global impedance
 	global DIST
-	imp_pose, imp_vel, imp_time_prev = swarmlib.impedance_human(hum_vel, imp_pose_prev, imp_vel_prev, imp_time_prev)
 
-	imp_pose_prev = imp_pose
-	imp_vel_prev = imp_vel
-
-	# all drones follow a human with impedance
+	# define joystick buttons state
 	try:
 		if raw==1:
 			rotated = True
@@ -71,8 +73,21 @@ def tag_game(human, cf1, cf2):
 			DIST += 0.01
 		elif width == -1:
 			DIST -= 0.01
+		elif imp_on == 1:
+			impedance = 1
+		elif imp_off == 1:
+			impedance = 0
 	except:
 		pass
+
+	if impedance:
+		print('Impedance control')
+		imp_pose, imp_vel, imp_time_prev = swarmlib.impedance_human(hum_vel, imp_pose_prev, imp_vel_prev, imp_time_prev)
+		imp_pose_prev = imp_pose
+		imp_vel_prev = imp_vel
+	else:
+		print('No impedance control')
+		imp_pose = np.array([0,0,0])
 
 	if rotated:
 		drone1_pose_goal = np.array([  human_pose[0] - l,
@@ -81,9 +96,8 @@ def tag_game(human, cf1, cf2):
 		drone2_pose_goal = np.array([  drone1_pose_goal[0] - DIST,
 									   drone1_pose_goal[1],
 									   human_pose[2] + 0.1])
-
-		drone1_pose_goal[0] += imp_pose[0]*0.5
-		drone2_pose_goal[0] -= imp_pose[0]*0.5
+		drone1_pose_goal[0] += abs( imp_pose[1]*0.5 )
+		drone2_pose_goal[0] -= abs( imp_pose[1]*0.5 )
 
 	else:
 		drone1_pose_goal = np.array([  human_pose[0] - l,
@@ -92,9 +106,8 @@ def tag_game(human, cf1, cf2):
 		drone2_pose_goal = np.array([  drone1_pose_goal[0],
 									   drone1_pose_goal[1] + DIST,
 									   human_pose[2] + 0.1])
-
-		drone1_pose_goal[1] -= imp_pose[1]*0.4
-		drone2_pose_goal[1] += imp_pose[1]*0.4
+		drone1_pose_goal[1] -= abs( imp_pose[0]*0.4 )
+		drone2_pose_goal[1] += abs( imp_pose[0]*0.4 )
 
 	# TO FLY
 	swarmlib.publish_goal_pos(drone1_pose_goal, 0, "/crazyflie13")
@@ -104,8 +117,6 @@ def tag_game(human, cf1, cf2):
 	swarmlib.publish_pose(drone1_pose_goal, 0, "drone1_pose_goal")
 	swarmlib.publish_pose(drone2_pose_goal, 0, "drone2_pose_goal")
 	swarmlib.publish_pose(human_pose, 0, "human_pose")
-
-
 
 
 def follower():

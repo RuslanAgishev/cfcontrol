@@ -32,7 +32,7 @@ if __name__ == '__main__':
         msg.header.seq += 1
         msg.header.stamp = rospy.Time.now()
         t = (msg.header.stamp - start_time).to_sec()
-        print(t)
+        print('X: '+str(msg.pose.position.x)+' t: '+str(t))
         if t > traj.duration:
             break
             # t = traj.duration

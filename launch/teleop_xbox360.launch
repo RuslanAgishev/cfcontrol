@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 
 <launch>
-  <arg name="uri" default="radio://0/100/2M/0xE7E7E7E70F" />
+  <arg name="uri" default="radio://0/80/2M/E7E7E7E712" />
   <arg name="joy_dev" default="/dev/input/js0" />
 
   <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
@@ -19,7 +19,7 @@
       <param name="dev" value="$(arg joy_dev)" />
     </node>
 
-    <include file="$(find crazyflie_demo)/launch/xbox360.launch">
+    <include file="$(find cfcontrol)/launch/xbox360.launch">
     </include>
 
     <node name="crazyflie_demo_controller" pkg="crazyflie_demo" type="controller.py" output="screen">

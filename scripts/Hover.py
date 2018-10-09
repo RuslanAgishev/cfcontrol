@@ -159,19 +159,19 @@ class Crazyflie:
         self.stop_pub.publish(self.stop_msg)
 
 def handler(cf):
-    cf.takeOff(0.4)
-    cf.goTo(0.4, 0.1, 0.2, 0)
+    cf.takeOff(0.8)
+    #cf.goTo(0.4, 0.1, 0.2, 0)
     cf.land()
 
 if __name__ == '__main__':
     rospy.init_node('hover', anonymous=True)
 
-    cf1 = Crazyflie("crazyflie15")
+    #cf1 = Crazyflie("crazyflie15")
     cf2 = Crazyflie("crazyflie18")
 
-    t1 = Thread(target=handler, args=(cf1,))
+    #t1 = Thread(target=handler, args=(cf1,))
     t2 = Thread(target=handler, args=(cf2,))
-    t1.start()
+    #t1.start()
     t2.start()
 
 
