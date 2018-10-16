@@ -27,12 +27,14 @@ import crazyflie
 np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
 
 
-
 imp_pose_prev = np.array( [0,0,0] )
 imp_vel_prev = np.array( [0,0,0] )
 imp_time_prev = time.time()
 
-imp_pose_from_theta = None
+imp_pose_from_theta1 = None
+imp_pose_from_theta2 = None
+imp_pose_from_theta3 = None
+
 imp_delta_pose_prev = np.array( [0,0,0] )
 imp_delta_vel_prev = np.array( [0,0,0] )
 imp_delta_time_prev = time.time()
@@ -41,20 +43,38 @@ imp_theta_prev = 0
 imp_omega_prev = 0
 imp_theta_time_prev = time.time()
 
-flew_in1 = 0; flew_out1 = 0
-flew_in2 = 0; flew_out2 = 0
-flew_in3 = 0; flew_out3 = 0
+flew_in1 = 0
+flew_in2 = 0
+flew_in3 = 0
+
+
+def near_obstacle(drone_pose_goal, flew_in, imp_theta, imp_omega, imp_theta_time, theta_sp, omega0):
+	if flew_in > 0: 	  # in the circle-like vicinity of the obstacle
+		if flew_in == 1: # crossed the circle near the obstacle
+			print "Drone is Near the obstacle"
+			imp_theta = theta_sp
+			imp_theta_prev = imp_theta
+			imp_omega_prev = omega0
+		else:
+			imp_theta, imp_omega, imp_theta_time_prev = swarmlib.impedance_obstacle_theta(theta_sp, imp_theta, imp_omega, imp_theta_time)
+			imp_theta_prev = imp_theta
+			imp_omega_prev = imp_omega
+		drone_pose_goal[:2] = obstacle1_pose[:2] + np.array([R_obstacles*np.cos(imp_theta), R_obstacles*np.sin(imp_theta)])
+	else:
+		pass
+	return drone_pose_goal, imp_theta, imp_omega, imp_theta_time
 
 
 
-
-def tag_game(human, cf1, obstacle1):
-# def tag_game(human, cf1, cf2):
+# def tag_game(human, cf1, cf2, obstacle1):
+def tag_game(human, cf1, cf2, cf3, obstacle1):
 # def tag_game(human, cf1, cf2, cf3, obstacle1, obstacle2, obstacle3, obstacle4, obstacle5, obstacle6, obstacle7):
 # def tag_game(human, cf1, cf2, cf3, obstacle):
 	human_pose = swarmlib.get_coord(human)
 	obstacle1_pose = swarmlib.get_coord(obstacle1)
 	drone1_pose = swarmlib.get_coord(cf1)
+	drone2_pose = swarmlib.get_coord(cf2)
+	drone3_pose = swarmlib.get_coord(cf3)
 
 	l = 0.35
 	R_obstacles= 0.32
@@ -62,13 +82,15 @@ def tag_game(human, cf1, obstacle1):
 	hum_vel = swarmlib.hum_vel(human_pose)
 
 	drone1_w, drone1_vel = swarmlib.drone_w(drone1_pose, drone1_pose - obstacle1_pose)
+	drone2_w, drone2_vel = swarmlib.drone_w(drone2_pose, drone2_pose - obstacle1_pose)
+	drone3_w, drone3_vel = swarmlib.drone_w(drone3_pose, drone3_pose - obstacle1_pose)
+
 
 	# HUMAN IMPEDANCE
 	global imp_pose_prev
 	global imp_vel_prev
 	global imp_time_prev
 	imp_pose, imp_vel, imp_time_prev = swarmlib.impedance_human(hum_vel, imp_pose_prev, imp_vel_prev, imp_time_prev)
-	# print "imp_pose", imp_pose
 	imp_pose_prev = imp_pose
 	imp_vel_prev = imp_vel
 	# swarmlib.publish_pose(human_pose + imp_pose, 0, "human_pose_imp")
@@ -100,38 +122,50 @@ def tag_game(human, cf1, obstacle1):
 
 
 	# OBSTACLE DELTA IMPEDANCE
-	global imp_delta_pose_prev
-	global imp_delta_vel_prev
-	global imp_delta_time_prev
-	imp_delta_pose, imp_delta_vel, imp_delta_time_prev = swarmlib.impedance_obstacle_delta(delta1, imp_delta_pose_prev, imp_delta_vel_prev, imp_delta_time_prev)
-	imp_delta_pose_prev = imp_delta_pose
-	imp_delta_vel_prev = imp_delta_vel
-	drone1_pose_goal += imp_delta_pose
+	# global imp_delta_pose_prev
+	# global imp_delta_vel_prev
+	# global imp_delta_time_prev
+	# imp_delta_pose, imp_delta_vel, imp_delta_time_prev = swarmlib.impedance_obstacle_delta(delta1, imp_delta_pose_prev, imp_delta_vel_prev, imp_delta_time_prev)
+	# imp_delta_pose_prev = imp_delta_pose
+	# imp_delta_vel_prev = imp_delta_vel
+
+	# drone1_pose_goal += imp_delta_pose
+
 
 	# OBSTACLE THETA IMPEDANCE
 	drone1_pose_goal_prev = drone1_pose_goal
+	drone2_pose_goal_prev = drone2_pose_goal
+	drone3_pose_goal_prev = drone3_pose_goal
 	global flew_in1
 	global flew_in2
 	global flew_in3
-	global imp_pose_from_theta
+	global imp_pose_from_theta1
+	global imp_pose_from_theta2
+	global imp_pose_from_theta3
 	global imp_theta_prev
 	global imp_omega_prev
 	global imp_theta_time_prev
-	flew_in1 = swarmlib.obstacle_status(obstacle1_pose, drone1_pose_goal_prev, imp_pose_from_theta, human_pose, R_obstacles, flew_in1)
-	# in the circle-like vicinity of the obstacle
-	if flew_in1 > 0:
+
+	flew_in1 = swarmlib.obstacle_status(obstacle1_pose, drone1_pose_goal_prev, imp_pose_from_theta1, human_pose, R_obstacles, flew_in1)
+	flew_in2 = swarmlib.obstacle_status(obstacle1_pose, drone2_pose_goal_prev, imp_pose_from_theta2, human_pose, R_obstacles, flew_in2)
+	flew_in3 = swarmlib.obstacle_status(obstacle1_pose, drone3_pose_goal_prev, imp_pose_from_theta3, human_pose, R_obstacles, flew_in3)
+
+	# drone1_goal_pose, imp_theta, imp_omega, imp_theta_time = near_obstacle(drone1_pose_goal, flew_in1, imp_theta, imp_omega, imp_theta_time, theta1_sp, drone1_w[2])
+
+
+	flew_in1 = swarmlib.obstacle_status(obstacle1_pose, drone1_pose_goal_prev, imp_pose_from_theta1, human_pose, R_obstacles, flew_in1)
+	if flew_in1 > 0: 	  # in the circle-like vicinity of the obstacle
 		if flew_in1 == 1: # crossed the circle near the obstacle
-			print "Near the obstacle"
+			print "Drone 1 is Near the obstacle"
 			imp_theta = theta1_sp
 			imp_theta_prev = imp_theta
 			imp_omega_prev = drone1_w[2]
-			print drone1_w[2]
 		else:
 			imp_theta, imp_omega, imp_theta_time_prev = swarmlib.impedance_obstacle_theta(theta1_sp, imp_theta_prev, imp_omega_prev, imp_theta_time_prev)
 			imp_theta_prev = imp_theta
 			imp_omega_prev = imp_omega
-		imp_pose_from_theta = obstacle1_pose + np.array([R_obstacles*np.cos(imp_theta), R_obstacles*np.sin(imp_theta), drone1_pose_goal[2] - obstacle1_pose[2]])
-		drone1_pose_goal = imp_pose_from_theta
+		imp_pose_from_theta1 = obstacle1_pose[:2] + np.array([R_obstacles*np.cos(imp_theta), R_obstacles*np.sin(imp_theta)])
+		drone1_pose_goal[:2] = imp_pose_from_theta1
 
 
 	# TO FLY
@@ -156,7 +190,8 @@ def follower():
 	cf3_sub = message_filters.Subscriber('/vicon/crazyflie13/crazyflie13', TransformStamped)
 	obstacle1_sub = message_filters.Subscriber('/vicon/obstacle1/obstacle1', TransformStamped)
 
-	ts = message_filters.ApproximateTimeSynchronizer([human_sub, cf1_sub, obstacle1_sub], 10, 5)
+	#ts = message_filters.ApproximateTimeSynchronizer([human_sub, cf1_sub, cf2_sub, obstacle1_sub], 10, 5)
+	ts = message_filters.ApproximateTimeSynchronizer([human_sub, cf1_sub, cf2_sub, cf3_sub, obstacle1_sub], 10, 5)
 	
 	ts.registerCallback(tag_game)
 	rospy.spin()
