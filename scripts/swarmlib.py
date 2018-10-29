@@ -4,6 +4,7 @@ from __future__ import division
 import rospy
 import tf
 from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Path
 
 
 from math import *
@@ -61,6 +62,16 @@ def publish_goal_pos(cf_goal_pos, cf_goal_yaw, cf_name):
 	msg = msg_def_crazyflie(cf_goal_pos, cf_goal_yaw)
 	pub = rospy.Publisher(name, Position, queue_size=1)
 	pub.publish(msg)
+
+
+def publish_path(path, cf_goal_pos, cf_goal_yaw, cf_name):
+	name = cf_name+"/cmd_path"
+	msg = msg_def_PoseStamped(cf_goal_pos, cf_goal_yaw)
+	path.header = msg.header
+	path.poses.append(msg)
+	pub = rospy.Publisher(name, Path, queue_size=1)
+	pub.publish(path)
+
 
 def get_coord(PoseStamped_message):
 	x = PoseStamped_message.transform.translation.x
@@ -188,7 +199,7 @@ def impedance_human(hum_vel, imp_pose_prev, imp_vel_prev, time_prev):
 	return imp_pose, imp_vel, time_prev
 
 
-# DELSTA OBSTACLE IMPEDANCE
+# DELTA OBSTACLE IMPEDANCE
 def impedance_obstacle_delta(delta, imp_pose_prev, imp_vel_prev, time_prev):
 	F_coeff = 12 # 7
 	time_step = time.time() - time_prev
@@ -207,7 +218,6 @@ def impedance_obstacle_delta(delta, imp_pose_prev, imp_vel_prev, time_prev):
 	imp_pose = np.array( [state_x[0], state_y[0], 0] )
 	imp_vel  = np.array( [state_x[1], state_y[1], 0] )
 
-	# return state[0]
 	return imp_pose, imp_vel, time_prev
 
 
@@ -244,33 +254,39 @@ def impedance_obstacle_theta(theta, imp_theta_prev, imp_omega_prev, time_prev):
 	return imp_theta, imp_omega, time_prev
 
 
-def obstacle_status(obstacle_pose_input, drone_pose_sp, imp_pose_from_theta, human_pose, R, flew_in):
-	obstacle_pose = np.array([ obstacle_pose_input[0], obstacle_pose_input[1]  ])
+
+def obstacle_status(Obstacle_map, drone_pose_sp, imp_pose_from_theta, human_pose, R, flew_in):
 	drone_sp = np.array([   drone_pose_sp[0] , drone_pose_sp[1]  ])
-	dist = np.linalg.norm(obstacle_pose-drone_sp)
+	dist = np.array([])
+	for i in range(len(Obstacle_map)):
+		dist = np.append( dist, np.linalg.norm(Obstacle_map[i]-drone_sp) )
+	closest_obstacle = np.where( np.array(dist) == np.array(dist).min() )[0][0]
 	if imp_pose_from_theta is not None:
 		drone_imp = np.array([   imp_pose_from_theta[0] , imp_pose_from_theta[1]  ])
-		d_theta = theta_from_pose(drone_sp, obstacle_pose) - theta_from_pose(drone_imp, obstacle_pose)
+		d_theta = theta_from_pose(drone_sp, Obstacle_map[closest_obstacle]) - theta_from_pose(drone_imp, Obstacle_map[closest_obstacle])
 	else:
 		d_theta = pi
-	if dist<R+0.02:
+	if sum( dist<R+0.05 ):
 		# the drone is near the obstacle
 		flew_in += 1
 		flew_out = 0
-	elif dist>R and abs( d_theta ) < pi/18.:
+	elif sum( dist>R ) and abs( d_theta ) < pi/16.:
 		flew_in = 0
+	return flew_in, closest_obstacle
 
-	return flew_in
 
-def pose_update_obstacle(obstacle_pose_input, object_pose_input, R):
-	obstacle_pose = np.array([ obstacle_pose_input[0], obstacle_pose_input[1]  ])
+
+
+def pose_update_obstacle(Obstacles_map, object_pose_input, R):
 	object_pose = np.array([   object_pose_input[0] , object_pose_input[1]  ])
 	
-	dist = np.linalg.norm(obstacle_pose-object_pose)
-	# print "dist", dist
-
+	dist = np.array([])
+	for i in range(len(Obstacles_map)):
+		dist = np.append( dist, np.linalg.norm(Obstacles_map[i]-object_pose) )
+	closest_obstacle = np.where( np.array(dist) == np.array(dist).min() )[0][0]
 	pose_is_updated = False
-	if dist<R:
+	obstacle_pose = Obstacles_map[ closest_obstacle ]
+	if sum( dist<R ):
 		eq1 = np.array([ [obstacle_pose[0],1], [object_pose[0],1] ])
 		eq2 = np.array([obstacle_pose[1],object_pose[1]])
 
@@ -301,18 +317,17 @@ def pose_update_obstacle(obstacle_pose_input, object_pose_input, R):
 		else:
 			updated_pose = point2
 
-
 		pose_is_updated = True
+		
 	else:
 		updated_pose = object_pose
 
-	theta = theta_from_pose(object_pose_input, obstacle_pose_input)
+	theta = theta_from_pose(object_pose_input, obstacle_pose)
 	delta = updated_pose - object_pose
 
 	updated_pose = np.append(updated_pose, object_pose_input[2])
 
 	return updated_pose, pose_is_updated, delta, theta
-
 
 
 
