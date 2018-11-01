@@ -14,10 +14,10 @@
   <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch">
   </include>
 
-  <group ns="crazyflie1">
+  <group ns="cf1">
     <node pkg="crazyflie_driver" type="crazyflie_add" name="crazyflie_add" output="screen">
       <param name="uri" value="$(arg uri1)" />
-      <param name="tf_prefix" value="crazyflie1" />
+      <param name="tf_prefix" value="cf1" />
       <param name="enable_logging_imu" value="False" />
       <param name="enable_logging_temperature" value="False" />
       <param name="enable_logging_magnetic_field" value="False" />
@@ -35,13 +35,13 @@
       <param name="topic" value="$(arg frame1)" />
     </node>
 
-    <node pkg="tf" type="static_transform_publisher" name="baselink_broadcaster" args="0 0 0 0 0 0 1 $(arg frame1) /crazyflie1/base_link 100" />
+    <node pkg="tf" type="static_transform_publisher" name="baselink_broadcaster" args="0 0 0 0 0 0 1 $(arg frame1) /cf1/base_link 100" />
   </group>
 
-  <group ns="crazyflie2">
+  <group ns="cf2">
     <node pkg="crazyflie_driver" type="crazyflie_add" name="crazyflie_add" output="screen">
       <param name="uri" value="$(arg uri2)" />
-      <param name="tf_prefix" value="crazyflie2" />
+      <param name="tf_prefix" value="cf2" />
       <param name="enable_logging_imu" value="False" />
       <param name="enable_logging_temperature" value="False" />
       <param name="enable_logging_magnetic_field" value="False" />
@@ -59,14 +59,14 @@
       <param name="topic" value="$(arg frame2)" />
     </node>
 
-    <node pkg="tf" type="static_transform_publisher" name="baselink_broadcaster" args="0 0 0 0 0 0 1 $(arg frame2) /crazyflie2/base_link 100" />
+    <node pkg="tf" type="static_transform_publisher" name="baselink_broadcaster" args="0 0 0 0 0 0 1 $(arg frame2) /cf2/base_link 100" />
   </group>
 
 
-  <group ns="crazyflie3">
+  <group ns="cf3">
     <node pkg="crazyflie_driver" type="crazyflie_add" name="crazyflie_add" output="screen">
       <param name="uri" value="$(arg uri3)" />
-      <param name="tf_prefix" value="crazyflie3" />
+      <param name="tf_prefix" value="cf3" />
       <param name="enable_logging_imu" value="True" />
       <param name="enable_logging_temperature" value="False" />
       <param name="enable_logging_magnetic_field" value="False" />
@@ -84,7 +84,7 @@
       <param name="topic" value="$(arg frame3)" />
     </node>
 
-    <node pkg="tf" type="static_transform_publisher" name="baselink_broadcaster" args="0 0 0 0 0 0 1 $(arg frame3) /crazyflie3/base_link 100" />
+    <node pkg="tf" type="static_transform_publisher" name="baselink_broadcaster" args="0 0 0 0 0 0 1 $(arg frame3) /cf3/base_link 100" />
   </group>
 
 
@@ -96,5 +96,5 @@
       <param name="dev" value="$(arg joy_dev)" />
   </node-->
 
-  <!--node name="rviz" pkg="rviz" type="rviz" args="-d $/home/ruslan/.rviz/imp_cargo_rviz_config.rviz" required="true" /-->
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find cfcontrol)/config/main.rviz" />
 </launch>
