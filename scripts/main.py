@@ -129,18 +129,13 @@ if __name__ == '__main__':
 		drone3.sp = drone1.sp + np.array([-l ,-l, 0])
 
 		# ROTATION due to hand position
-		centroid = swarmlib.centroid_calc(drone1, drone2, drone3)
-		drone1.sp = swarmlib.rotate(centroid, drone1, human)
-		drone2.sp = swarmlib.rotate(centroid, drone2, human)
-		drone3.sp = swarmlib.rotate(centroid, drone3, human)
+		# centroid = swarmlib.centroid_calc(drone1, drone2, drone3)
+		# drone1.sp = swarmlib.rotate(centroid, drone1, human)
+		# drone2.sp = swarmlib.rotate(centroid, drone2, human)
+		# drone3.sp = swarmlib.rotate(centroid, drone3, human)
 
 		# OBSTACLEs
 		# TODO: make it to look good, by Ruslan
-
-		# init distances from obstacles to drones
-		# drones_poses = np.array([drone1.sp, drone2.sp, drone3.sp])
-		# for i in range(len(obstacle)):
-		# 	obstacle[i].calculate_dist(drones_poses)
 
 		# for i in range(len(obstacle)):
 		# 	drone1.sp, updated_1 = swarmlib.pose_update_obstacle(drone1, obstacle[i], R_obstacles)
@@ -151,7 +146,11 @@ if __name__ == '__main__':
 		drone2.sp = swarmlib.pose_update_obstacle_imp(drone2, obstacle[0], R_obstacles)
 		drone3.sp = swarmlib.pose_update_obstacle_imp(drone3, obstacle[0], R_obstacles)
 
+		drone3.sp, updated_3 = swarmlib.pose_update_drone(drone3, drone1, l)
+		drone2.sp, updated_2 = swarmlib.pose_update_drone(drone2, drone1, l)
 
+		# print "vel_"+str(drone1.name)+"="+str(drone1.drone_twist(drone1.sp, [1,0,0])[1])
+		# print "vel_"+str(drone2.name)+"="+str(drone2.drone_twist(drone2.sp, [1,0,0])[1])
 
 		# TO FLY
 		if toFly:
