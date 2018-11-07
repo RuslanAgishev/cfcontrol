@@ -29,7 +29,7 @@ from crazyflie_driver.msg import Position
 
 
 class Drone:
-	def __init__(self, name, leader = False):
+	def __init__(self, name, obstacles, leader = False):
 		self.name = name
 		self.tf = '/vicon/'+name+'/'+name
 		self.leader = leader
@@ -37,13 +37,17 @@ class Drone:
 		self.pose = np.array([0,0,0])
 		self.orient = np.array([0,0,0])
 		self.sp = np.array([0,0,0])
+		self.obstacles = obstacles
 		self.path = Path()
 		self.delta = np.array([0,0])
-		self.near_obstacle = 0
+		self.near_obstacle = np.zeros(len(obstacles))
 		self.impedance_delta = Impedance_delta()
 		self.impedance_theta = Impedance_theta()
+		self.impedance_avel = Impedance_avel()
 		self.theta = None
+		self.d_theta = pi*np.ones(len(obstacles))
 		self.dist_to_drones = np.zeros(3)
+		self.dist_to_obst = np.zeros(len(obstacles))
 		self.drone_time_array = np.ones(10)
 		self.drone_pose_array = np.array([ np.ones(10), np.ones(10), np.ones(10) ])
 
@@ -75,29 +79,42 @@ class Drone:
 		# 	np.putmask(self.sp, self.sp <= -limits, -limits)
 		publish_goal_pos(self.sp, 0, "/"+self.name)
 
-	def update_pose_theta(self, drone, obstacle_pose, R):
-		drone_omega3D, _ = self.drone_twist(drone.sp, drone.sp-obstacle_pose)
+	def update_pose_theta(self, drone, obstacle, R):
+		drone_omega3D, _ = self.drone_twist(drone.sp, drone.sp-obstacle.position())
 		drone_omega = drone_omega3D[2]
-		if drone.near_obstacle == 1:
+		if drone.near_obstacle[obstacle.id] == 1:
 			drone.impedance_theta.imp_theta, drone.impedance_theta.imp_omega, drone.impedance_theta.imp_time =\
 				drone.impedance_theta.impedance_model(drone.theta, drone.theta, drone_omega, drone.impedance_theta.imp_time)
 		else:
 			drone.impedance_theta.imp_theta, drone.impedance_theta.imp_omega, drone.impedance_theta.imp_time =\
 				drone.impedance_theta.impedance_model(drone.theta, drone.impedance_theta.imp_theta, drone.impedance_theta.imp_omega, drone.impedance_theta.imp_time)
 
-		updated_pose = drone.impedance_theta.pose_from_theta( obstacle_pose[:2], R, drone.impedance_theta.imp_theta )
+		updated_pose = drone.impedance_theta.pose_from_theta( obstacle.position()[:2], R, drone.impedance_theta.imp_theta )
 		return updated_pose
 
 	def update_pose_delta(self, pose_prev, drone):
 		drone.impedance_delta.imp_pose, drone.impedance_delta.imp_vel, drone.impedance_delta.imp_time =\
 			drone.impedance_delta.impedance_model(drone.delta, drone.impedance_delta.imp_pose, drone.impedance_delta.imp_vel, drone.impedance_delta.imp_time)
 
-		updated_pose = pose_prev + 0.2*drone.impedance_delta.imp_pose[:2]
+		updated_pose = pose_prev + 0.1*drone.impedance_delta.imp_pose[:2]
 		return updated_pose
 
-	def calculate_dist(self, drones_poses):
+	def update_pose_avel(self, pose_prev, average_vel):
+		self.impedance_avel.imp_pose, self.impedance_avel.imp_vel, self.impedance_avel.imp_time = \
+			self.impedance_avel.impedance_model(average_vel, self.impedance_avel.imp_pose, self.impedance_avel.imp_vel, self.impedance_avel.imp_time)
+		updated_pose = pose_prev + 0.15*self.impedance_avel.imp_pose
+		return updated_pose
+
+	def calculate_dist_to_drones(self, drones_poses):
 		for i in range(len(drones_poses)):
 			self.dist_to_drones[i] = np.linalg.norm(drones_poses[i]-self.sp)
+
+	def dist_to_obstacles(self):
+		dist = []
+		for i in range(len(self.obstacles)):
+			dist.append( np.linalg.norm(self.obstacles[i].position()[:2]-self.sp[:2]) )
+		self.dist_to_obst = dist
+		return np.array(dist)
 
 	def drone_twist(self, drone_pose, R_from_obstacle):
 		for i in range(len(self.drone_time_array)-1):
@@ -154,13 +171,14 @@ class Mocap_object:
 
 
 class Obstacle:
-    def __init__(self, name, drones_poses):
+    def __init__(self, name, id):
         self.name = name
+        self.id = id
         self.tf = '/vicon/'+name+'/'+name
         self.tl = TransformListener()
         self.pose = np.array([0,0,0])
         self.orient = np.array([0,0,0])
-        self.dist_to_drones = np.zeros(len(drones_poses))
+        self.dist_to_drones = np.zeros(3)
 
     def position(self):
         self.tl.waitForTransform("/world", self.tf, rospy.Time(0), rospy.Duration(1))
@@ -237,6 +255,33 @@ class Impedance_theta:
 	def theta_from_pose(self, object1, object2):
 		theta = np.sign(object1[1]-object2[1]) * acos( (object1[0]-object2[0]) / np.linalg.norm(object1[:2] - object2[:2]) ) # [-pi,pi] - range
 		return theta
+
+
+
+class Impedance_avel:
+	def __init__(self):
+		self.imp_pose = np.array([0,0,0])
+		self.imp_vel = np.array([0,0,0])
+		self.imp_time = time.time()
+
+	def impedance_model(self, delta, imp_pose_prev, imp_vel_prev, time_prev):
+		F_coeff = 12 # 7
+		time_step = time.time() - time_prev
+		time_prev = time.time()
+		t = [0. , time_step]
+		F = - delta * F_coeff
+
+		state0_x = [imp_pose_prev[0], imp_vel_prev[0]]
+		state_x = odeint(MassSpringDamper, state0_x, t, args=(F[0],))
+		state_x = state_x[1]
+
+		state0_y = [imp_pose_prev[1], imp_vel_prev[1]]
+		state_y = odeint(MassSpringDamper, state0_y, t, args=(F[1],))
+		state_y = state_y[1]
+
+		imp_pose = np.array( [state_x[0], state_y[0], 0] )
+		imp_vel  = np.array( [state_x[1], state_y[1], 0] )
+		return imp_pose, imp_vel, time_prev
 
 
 # serial_port = serial.Serial('/dev/ttyUSB0', 9600)
@@ -338,7 +383,7 @@ def publish_path(path, pose, orient, topic_name):
 	msg = msg_def_PoseStamped(pose, orient)
 	path.header = msg.header
 	path.poses.append(msg)
-	path.poses = path.poses[-400:]
+	path.poses = path.poses[-800:]
 	pub = rospy.Publisher(topic_name, Path, queue_size=1)
 	pub.publish(path)
 
@@ -564,48 +609,49 @@ def pose_update_obstacle(drone, obstacle, R):
 
 
 def pose_update_drone(drone, drone_obstacle, R):
+	# drone avoids drone_obstacle on a circle trajectory if they are near
+	# else there is an impedance between them based on their average speed
 	obstacle_pose = drone_obstacle.sp[:2]
 	average_vel = ( drone.drone_twist(drone.sp, drone.sp-drone_obstacle.sp)[1] + \
 					drone_obstacle.drone_twist(drone_obstacle.sp, drone.sp-drone_obstacle.sp)[1] ) / 2.0
-	print "<V>="+str(average_vel)
 
 	drone_pose = drone.sp[:2]
 	dist = np.linalg.norm(obstacle_pose-drone_pose)
 	if dist<R:
 		updated_pose = quad_prog_circle(drone_pose, obstacle_pose, R)
 		pose_is_updated = True
+		updated_pose = np.append(updated_pose, drone.sp[2])
 	else:
-		updated_pose = drone_pose
-		pose_is_updated = False
-	updated_pose = np.append(updated_pose, drone.sp[2])
-
+		updated_pose = drone.update_pose_avel(drone.sp, average_vel)
+	 	pose_is_updated = False
+	
 	return updated_pose, pose_is_updated
+
 
 
 
 def pose_update_obstacle_imp(drone, obstacle, R):
 	obstacle_pose = obstacle.position()[:2]
-	drone_pose = drone.sp[:2]
-	
-	drone.near_obstacle += 1
+	drone_pose = drone.sp[:2]	
 	drone.theta = drone.impedance_theta.theta_from_pose(drone_pose, obstacle.pose)
-	updated_pose = drone.update_pose_theta(drone, obstacle.position(), R)
-	dist = np.linalg.norm(obstacle_pose-drone_pose)
-	d_theta = drone.impedance_theta.theta_from_pose(drone_pose, obstacle_pose) - drone.impedance_theta.theta_from_pose(updated_pose, obstacle_pose)
-
-	drone.delta = updated_pose - drone_pose
-	updated_pose = drone.update_pose_delta(updated_pose, drone)
-
-	if dist>R and abs(d_theta)<pi/16.:
+	if drone.dist_to_obstacles()[obstacle.id]<R or abs(drone.d_theta[obstacle.id])>pi/16.:
+		drone.near_obstacle[obstacle.id] += 1
+		updated_pose = drone.update_pose_theta(drone, obstacle, R)
+		drone.d_theta[obstacle.id] = drone.impedance_theta.theta_from_pose(drone_pose, obstacle_pose) - drone.impedance_theta.theta_from_pose(updated_pose, obstacle_pose)
+	else: 
 		updated_pose = drone_pose
-		drone.near_obstacle = 0
 		drone.theta = None
 		drone.delta = np.array([0,0])
-		drone.near_obstacle = 0
+		drone.near_obstacle[obstacle.id] = 0
+		
+	# drone.delta = updated_pose - drone_pose
+	# updated_pose = drone.update_pose_delta(updated_pose, drone)
 
 	updated_pose = np.append(updated_pose, drone.sp[2])
 
 	return updated_pose
+
+
 
 
 

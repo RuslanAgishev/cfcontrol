@@ -184,6 +184,58 @@ def tag_game(human, cf1, cf2, cf3, obstacle1, obstacle2):
 	# else:
 		# drone1_pose_goal += (drone1_pose - drone1_pose_goal) / 2.0
 
+	# drone2_pose_goal_prev = drone2_pose_goal
+	# global flew_in2
+	# global imp_pose_from_theta2
+	# global imp_theta_prev2
+	# global imp_omega_prev2
+	# global imp_theta_time_prev2
+	# flew_in2, closest_obstacle_inbdex2 = swarmlib.obstacle_status(Obstacles_map, drone2_pose_goal_prev, imp_pose_from_theta2, human_pose, R_obstacles, flew_in2)
+	# # in the circle-like vicinity of the obstacle
+	# if flew_in2 > 0:
+	# 	if flew_in2 == 1: # crossed the circle near the obstacle
+	# 		current_obstacle_index2 = closest_obstacle_index2
+	# 		print "Drone 2 is near the obstacle "+str(current_obstacle_index2+1)
+	# 		imp_theta2 = theta2_sp
+	# 		imp_theta_prev2 = imp_theta2
+	# 		imp_omega_prev2 = drone2_w[2]
+	# 	else:
+	# 		imp_theta2, imp_omega2, imp_theta_time_prev2 = swarmlib.impedance_obstacle_theta(theta2_sp, imp_theta_prev2, imp_omega_prev2, imp_theta_time_prev2)
+	# 		imp_theta_prev2 = imp_theta2
+	# 		imp_omega_prev2 = imp_omega2
+	# 	imp_pose_from_theta2 = Obstacles_map[current_obstacle_index2] + np.array([R_obstacles*np.cos(imp_theta2), R_obstacles*np.sin(imp_theta2)])
+	# 	if theta_imp:
+	# 		drone2_pose_goal[:2] = imp_pose_from_theta2
+	# # uncomment with real drone
+	# # else:
+	# 	# drone2_pose_goal += (drone2_pose - drone2_pose_goal) / 2.0
+
+
+	# drone3_pose_goal_prev = drone3_pose_goal
+	# global flew_in3
+	# global imp_pose_from_theta3
+	# global imp_theta_prev3
+	# global imp_omega_prev3
+	# global imp_theta_time_prev3
+	# flew_in3, closest_obstacle_index3 = swarmlib.obstacle_status(Obstacles_map, drone3_pose_goal_prev, imp_pose_from_theta3, human_pose, R_obstacles, flew_in3)
+	# # in the circle-like vicinity of the obstacle
+	# if flew_in3 > 0:
+	# 	if flew_in3 == 1: # crossed the circle near the obstacle
+	# 		current_obstacle_index3 = closest_obstacle_index3
+	# 		print "Drone 3 is near the obstacle "+str(current_obstacle_index3+1)
+	# 		imp_theta3 = theta3_sp
+	# 		imp_theta_prev3 = imp_theta3
+	# 		imp_omega_prev3 = drone3_w[2]
+	# 	else:
+	# 		imp_theta3, imp_omega3, imp_theta_time_prev3 = swarmlib.impedance_obstacle_theta(theta3_sp, imp_theta_prev3, imp_omega_prev3, imp_theta_time_prev3)
+	# 		imp_theta_prev3 = imp_theta3
+	# 		imp_omega_prev3 = imp_omega3
+	# 	imp_pose_from_theta3 = Obstacles_map[current_obstacle_index3] + np.array([R_obstacles*np.cos(imp_theta3), R_obstacles*np.sin(imp_theta3)])
+	# 	if theta_imp:
+	# 		drone3_pose_goal[:2] = imp_pose_from_theta3
+	# # uncomment with real drone
+	# # else:
+	# # 	drone3_pose_goal += (drone3_pose - drone3_pose_goal) / 2.0
 
 
 	# TO FLY

@@ -23,13 +23,13 @@ np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
 import swarmlib
 
 # PARAMETERs #############
-toFly            = 0
+toFly            = 1
 vel_ctrl         = 0
 vel_koef         = 4.0
 impedance_on     = False
-TAKEOFFHEIGHT    = 1.2 # meters
+TAKEOFFHEIGHT    = 0.1 # meters
 TakeoffTime      = 5     # seconds
-l                = 0.25     # distance between drones, meters
+l                = 0.35     # distance between drones, meters
 R_obstacles      = 0.27
 limits           = np.array([ 2.2, 2.2, 2.5 ]) # np.array([ 2.0, 2.0, 2.5 ])
 cf_names         = np.array(['cf1',
@@ -37,15 +37,16 @@ cf_names         = np.array(['cf1',
 							 'cf3'])
 human_name       = 'palm'
 obstacle_names   = np.array([
-							 # 'obstacle1',
+							 'obstacle1',
 							 # 'obstacle2',
 							 # 'obstacle3',
-							 # 'obstacle4',
+							 'obstacle4',
 							 # 'obstacle5',
 							 # 'obstacle6',
 							 # 'obstacle7',
 							 # 'obstacle8',
-							 'obstacle9',
+							 # 'obstacle9',
+							 'obstacle'
 							 ])
 tacile_glove_on  = False
 
@@ -82,13 +83,13 @@ if __name__ == '__main__':
 		time.sleep(TakeoffTime)
 
 	# Objects init
-	drone1 = swarmlib.Drone(cf_names[0], leader = True)
-	drone2 = swarmlib.Drone(cf_names[1])
-	drone3 = swarmlib.Drone(cf_names[2])
-	human = swarmlib.Mocap_object(human_name)
 	obstacle = np.array([])
 	for i in range(len(obstacle_names)):
-		obstacle = np.append(obstacle, swarmlib.Obstacle( obstacle_names[i], np.array([drone1.sp, drone2.sp, drone3.sp]) ) )
+		obstacle = np.append(obstacle, swarmlib.Obstacle( obstacle_names[i], i))
+	drone1 = swarmlib.Drone(cf_names[0], obstacle, leader = True)
+	drone2 = swarmlib.Drone(cf_names[1], obstacle)
+	drone3 = swarmlib.Drone(cf_names[2], obstacle)
+	human = swarmlib.Mocap_object(human_name)
 
 	rate = rospy.Rate(60)
 	while not rospy.is_shutdown():
@@ -141,16 +142,15 @@ if __name__ == '__main__':
 		# 	drone1.sp, updated_1 = swarmlib.pose_update_obstacle(drone1, obstacle[i], R_obstacles)
 		# 	drone2.sp, updated_2 = swarmlib.pose_update_obstacle(drone2, obstacle[i], R_obstacles)
 		# 	drone3.sp, updated_3 = swarmlib.pose_update_obstacle(drone3, obstacle[i], R_obstacles)
+		
+		for i in range(len(obstacle)):
+			drone1.sp = swarmlib.pose_update_obstacle_imp(drone1, obstacle[i], R_obstacles)
+			drone2.sp = swarmlib.pose_update_obstacle_imp(drone2, obstacle[i], R_obstacles)
+			drone3.sp = swarmlib.pose_update_obstacle_imp(drone3, obstacle[i], R_obstacles)
 
-		drone1.sp = swarmlib.pose_update_obstacle_imp(drone1, obstacle[0], R_obstacles)
-		drone2.sp = swarmlib.pose_update_obstacle_imp(drone2, obstacle[0], R_obstacles)
-		drone3.sp = swarmlib.pose_update_obstacle_imp(drone3, obstacle[0], R_obstacles)
+		drone3.sp, updated_3 = swarmlib.pose_update_drone(drone3, drone1, 0.5*l)
+		drone2.sp, updated_2 = swarmlib.pose_update_drone(drone2, drone1, 0.5*l)
 
-		drone3.sp, updated_3 = swarmlib.pose_update_drone(drone3, drone1, l)
-		drone2.sp, updated_2 = swarmlib.pose_update_drone(drone2, drone1, l)
-
-		# print "vel_"+str(drone1.name)+"="+str(drone1.drone_twist(drone1.sp, [1,0,0])[1])
-		# print "vel_"+str(drone2.name)+"="+str(drone2.drone_twist(drone2.sp, [1,0,0])[1])
 
 		# TO FLY
 		if toFly:
