@@ -23,7 +23,7 @@ np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
 import swarmlib
 
 # PARAMETERs #############
-toFly            = 1
+toFly            = 0
 vel_ctrl         = 0
 vel_koef         = 4.0
 impedance_on     = False
