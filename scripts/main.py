@@ -23,14 +23,14 @@ np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
 import swarmlib
 
 # PARAMETERs #############
-toFly            = 0
+toFly            = 1
 vel_ctrl         = 0
 vel_koef         = 4.0
 impedance_on     = False
-TAKEOFFHEIGHT    = 0.1 # meters
+TAKEOFFHEIGHT    = 1.2 # meters
 TakeoffTime      = 5     # seconds
-l                = 0.35     # distance between drones, meters
-R_obstacles      = 0.27
+l                = 0.40     # distance between drones, meters
+R_obstacles      = 0.2
 limits           = np.array([ 2.2, 2.2, 2.5 ]) # np.array([ 2.0, 2.0, 2.5 ])
 cf_names         = np.array(['cf1',
 							 'cf2',
@@ -38,14 +38,14 @@ cf_names         = np.array(['cf1',
 human_name       = 'palm'
 obstacle_names   = np.array([
 							 'obstacle1',
-							 # 'obstacle2',
-							 # 'obstacle3',
+							 'obstacle2',
+							 'obstacle3',
 							 'obstacle4',
-							 # 'obstacle5',
-							 # 'obstacle6',
-							 # 'obstacle7',
-							 # 'obstacle8',
-							 # 'obstacle9',
+							 'obstacle5',
+							 'obstacle6',
+							 'obstacle7',
+							 'obstacle8',
+							 'obstacle9',
 							 'obstacle'
 							 ])
 tacile_glove_on  = False
@@ -119,15 +119,15 @@ if __name__ == '__main__':
 			point_to_follow_pose_prev = point_to_follow_pose
 			drone1.sp = point_to_follow_pose
 		else:
-			drone1.sp = np.array([  human.position()[0] -3.0*l        ,
+			drone1.sp = np.array([  human.position()[0] -6.0*l        ,
 									human.position()[1]               ,
 									human.position()[2] + 0.1         ])
 		
 		np.putmask(drone1.sp, drone1.sp >= limits, limits)
 		np.putmask(drone1.sp, drone1.sp <= -limits, -limits)
 
-		drone2.sp = drone1.sp + np.array([-l , l,	0])
-		drone3.sp = drone1.sp + np.array([-l ,-l, 0])
+		drone2.sp = drone1.sp + np.array([-0.86*l , l/2.,	0])
+		drone3.sp = drone1.sp + np.array([-0.86*l ,-l/2., 0])
 
 		# ROTATION due to hand position
 		# centroid = swarmlib.centroid_calc(drone1, drone2, drone3)

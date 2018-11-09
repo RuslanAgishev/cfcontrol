@@ -74,14 +74,16 @@ def close_pts(points, R):
 		if g != []:
 			group_numbers.append(g)
 	
-
 	G_parts = []
+	boundary = np.array([0,0])
 	for i in range(len(group_numbers)):
 		G_parts.append(np.array([0,0]))
 	for i in range(len(group_numbers)):
 		for g in ( (group_numbers[i]) ):
 			G_parts[i] = np.vstack((G_parts[i],C[g]))
 		G_parts[i] = G_parts[i][1:]
+		boundary = np.vstack( (boundary, ConvexHull(G_parts[i]).points) )
+	boundary = boundary[1:]
 
 	return group_numbers, G_global, G_parts
 
@@ -97,6 +99,7 @@ print "Obstacles' numbers in groups:\n"+str(group_numbers)
 plt.figure(figsize=(20,8))
 ax1 = plt.subplot(121)
 ax1.set_aspect('equal')
+b = np.array([0,0])
 for g in range(len(G_parts)):
 	G = G_parts[g]
 	legend_list.append("group"+str(g))
@@ -105,6 +108,8 @@ for g in range(len(G_parts)):
 	hull = ConvexHull(G)
 	for simplex in hull.simplices:
 		plt.plot(G[simplex, 0], G[simplex, 1], 'k-')
+		b = np.vstack((b,G[simplex, 0]))
+		b = np.vstack((b,G[simplex, 1]))
 plt.title('Obstacles divided into groups')
 plt.plot(points[:,0], points[:,1], 'x')
 plt.legend(legend_list)
@@ -114,6 +119,9 @@ ax2 = plt.subplot(122)
 ax2.set_aspect('equal')
 for i in range(len(points)):
 	plt.plot(G_global[:,0], G_global[:,1], 'o')
-	plt.title('All obstacles'' borders')
-plt.show()
+plt.title('All obstacles'' borders')
+#plt.show()
 
+plt.figure()
+plt.plot(b[:,0],b[:,1])
+plt.show()
