@@ -23,20 +23,27 @@ np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
 import swarmlib
 
 # PARAMETERs #############
-toFly            = 1
+toFly            = 0
 vel_ctrl         = 0
 vel_koef         = 4.0
+pos_ctrl		 = 1
+pos_coef         = 3.0
+const_height	 = 1
 impedance_on     = False
-TAKEOFFHEIGHT    = 1.2 # meters
+TAKEOFFHEIGHT    = 1.3 # meters
+HUMAN_Z_TO_LAND  = 0.8 # meters
 TakeoffTime      = 5     # seconds
 l                = 0.40     # distance between drones, meters
-R_obstacles      = 0.2
+R_obstacles      = 0.25
 limits           = np.array([ 2.2, 2.2, 2.5 ]) # np.array([ 2.0, 2.0, 2.5 ])
+tacile_glove_on  = False
+rotation 		 = 0
 cf_names         = np.array(['cf1',
 							 'cf2',
 							 'cf3'])
 human_name       = 'palm'
 obstacle_names   = np.array([
+							 'obstacle0',
 							 'obstacle1',
 							 'obstacle2',
 							 'obstacle3',
@@ -46,9 +53,20 @@ obstacle_names   = np.array([
 							 'obstacle7',
 							 'obstacle8',
 							 'obstacle9',
-							 'obstacle'
+							 'obstacle10',
+							 'obstacle11',
+							 'obstacle12',
+							 'obstacle13',
+							 'obstacle14',
+							 'obstacle15',
+							 'obstacle16',
+							 'obstacle17',
+							 'obstacle18',
+							 'obstacle19',
+							 'obstacle20',
+							 'obstacle21',
+							 'obstacle22'
 							 ])
-tacile_glove_on  = False
 
 # Variables #########################
 initialized = False
@@ -64,8 +82,6 @@ if tacile_glove_on:
 
 if __name__ == '__main__':
 	rospy.init_node('follow_multiple', anonymous=True)
-
-	# TODO: drone_list = ['cf1', 'cf2', 'cf3']
 	# TODO: swarmlib.SWARM_MANAGER(drone_list)
 
 	if toFly:
@@ -79,7 +95,7 @@ if __name__ == '__main__':
 		cf3 = crazyflie.Crazyflie(cf_names[2], '/vicon/'+cf_names[2]+'/'+cf_names[2])
 		cf3.setParam("commander/enHighLevel", 1)
 		cf3.takeoff(targetHeight = TAKEOFFHEIGHT, duration = 2.0)
-		# time to takeoff and select position for human
+		#time to takeoff and select position for human
 		time.sleep(TakeoffTime)
 
 	# Objects init
@@ -118,38 +134,56 @@ if __name__ == '__main__':
 			time_prev = time_now
 			point_to_follow_pose_prev = point_to_follow_pose
 			drone1.sp = point_to_follow_pose
+
+		elif pos_ctrl:
+			if not initialized:
+				human_pose_init = human.position()
+				if toFly:
+					drone1_pose_init = drone1.position()
+				else:
+					drone1_pose_init = np.array([1.5,0,0])
+				initialized = True
+			dx, dy = (human.position() - human_pose_init)[:2]
+			drone1.sp = np.array([  drone1_pose_init[0] + pos_coef*dx,
+									drone1_pose_init[1] + pos_coef*dy    ,
+									TAKEOFFHEIGHT        ])
 		else:
-			drone1.sp = np.array([  human.position()[0] -6.0*l        ,
+			drone1.sp = np.array([  human.position()[0] -4.0*l        ,
 									human.position()[1]               ,
 									human.position()[2] + 0.1         ])
-		
+
+		if const_height:
+			drone1.sp[2] = TAKEOFFHEIGHT
+
 		np.putmask(drone1.sp, drone1.sp >= limits, limits)
 		np.putmask(drone1.sp, drone1.sp <= -limits, -limits)
 
+		# drones forming equilateral triangle
 		drone2.sp = drone1.sp + np.array([-0.86*l , l/2.,	0])
 		drone3.sp = drone1.sp + np.array([-0.86*l ,-l/2., 0])
 
 		# ROTATION due to hand position
-		# centroid = swarmlib.centroid_calc(drone1, drone2, drone3)
-		# drone1.sp = swarmlib.rotate(centroid, drone1, human)
-		# drone2.sp = swarmlib.rotate(centroid, drone2, human)
-		# drone3.sp = swarmlib.rotate(centroid, drone3, human)
+		if rotation:
+			centroid = swarmlib.centroid_calc(drone1, drone2, drone3)
+			drone1.sp = swarmlib.rotate(centroid, drone1, human)
+			drone2.sp = swarmlib.rotate(centroid, drone2, human)
+			drone3.sp = swarmlib.rotate(centroid, drone3, human)
 
 		# OBSTACLEs
 		# TODO: make it to look good, by Ruslan
 
-		# for i in range(len(obstacle)):
-		# 	drone1.sp, updated_1 = swarmlib.pose_update_obstacle(drone1, obstacle[i], R_obstacles)
-		# 	drone2.sp, updated_2 = swarmlib.pose_update_obstacle(drone2, obstacle[i], R_obstacles)
-		# 	drone3.sp, updated_3 = swarmlib.pose_update_obstacle(drone3, obstacle[i], R_obstacles)
-		
 		for i in range(len(obstacle)):
-			drone1.sp = swarmlib.pose_update_obstacle_imp(drone1, obstacle[i], R_obstacles)
-			drone2.sp = swarmlib.pose_update_obstacle_imp(drone2, obstacle[i], R_obstacles)
-			drone3.sp = swarmlib.pose_update_obstacle_imp(drone3, obstacle[i], R_obstacles)
-
-		drone3.sp, updated_3 = swarmlib.pose_update_drone(drone3, drone1, 0.5*l)
-		drone2.sp, updated_2 = swarmlib.pose_update_drone(drone2, drone1, 0.5*l)
+			drone1.sp, updated_1 = swarmlib.pose_update_obstacle(drone1, obstacle[i], R_obstacles)
+			drone2.sp, updated_2 = swarmlib.pose_update_obstacle(drone2, obstacle[i], R_obstacles)
+			drone3.sp, updated_3 = swarmlib.pose_update_obstacle(drone3, obstacle[i], R_obstacles)
+		
+		# for i in range(len(obstacle)):
+		# 	drone1.sp = swarmlib.pose_update_obstacle_imp(drone1, obstacle[i], R_obstacles)
+		# 	drone2.sp = swarmlib.pose_update_obstacle_imp(drone2, obstacle[i], R_obstacles)
+		# 	drone3.sp = swarmlib.pose_update_obstacle_imp(drone3, obstacle[i], R_obstacles)
+		# # 2-nd and 3-rd drones avoid the 1-st
+		# drone3.sp, updated_3 = swarmlib.pose_update_drone(drone3, drone1, 0.5*l)
+		# drone2.sp, updated_2 = swarmlib.pose_update_drone(drone2, drone1, 0.5*l)
 
 
 		# TO FLY
@@ -163,40 +197,44 @@ if __name__ == '__main__':
 		drone1.publish_sp()
 		drone2.publish_sp()
 		drone3.publish_sp()
-		drone1.publish_path()
-		drone2.publish_path()
-		drone3.publish_path()
+		drone1.publish_path(limit=1000)	#set -1 for unlimited path
+		drone2.publish_path(limit=1000)
+		drone3.publish_path(limit=1000)
 		for i in range(len(obstacle)):
 			obstacle[i].publish_position()
 
 		if tacile_glove_on:
 			prev_pattern_time = swarmlib.tactile_patterns(drone1.sp, drone2.sp, drone3.sp, prev_pattern_time)
 
+
+
+		# Landing
+		if toFly and human.position()[2]<HUMAN_Z_TO_LAND:
+			print 'Landing!!!'
+			drone1_landing_pose = drone1.position()
+			drone2_landing_pose = drone2.position()
+			drone3_landing_pose = drone3.position()
+			while not rospy.is_shutdown():
+				drone1.sp = drone1_landing_pose
+				drone2.sp = drone2_landing_pose
+				drone3.sp = drone3_landing_pose
+				drone1_landing_pose[2] = drone1_landing_pose[2]-0.007
+				drone2_landing_pose[2] = drone2_landing_pose[2]-0.007
+				drone3_landing_pose[2] = drone3_landing_pose[2]-0.007
+				drone1.fly()
+				drone2.fly()
+				drone3.fly()
+				if drone1.sp[2]<-1.0 and drone2.sp[2]<-1.0 and drone2.sp[2]<-1.0:
+					sleep(1)
+					cf1.stop()
+					cf2.stop()
+					cf3.stop()
+					print 'reached the floor, shutdown'
+					rospy.signal_shutdown('landed')
+				rate.sleep()
+
+
 		rate.sleep()
-
-
-
-
-
-	print "Try to land"
-	# print "land"
-	# cf1.land(targetHeight = 0.0, duration = 1.0)
-	# cf2.land(targetHeight = 0.0, duration = 1.0)
-	# cf3.land(targetHeight = 0.0, duration = 1.0)
-	# time.sleep(1.0)
-	try:
-		cf1.stop()
-	except:
-		pass
-	try:
-		cf2.stop()
-	except:
-		pass
-	try:
-		cf3.stop()
-	except:
-		pass
-
 
 
 

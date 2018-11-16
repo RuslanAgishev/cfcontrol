@@ -69,8 +69,10 @@ class Drone:
 	def publish_position(self):
 	    publish_pose(self.pose, self.orient, self.name+"_pose")
 
-	def publish_path(self):
-		publish_path(self.path, self.sp, self.orient, self.name+"_path")
+	def publish_path(self, limit=1000):
+		publish_path(self.path, self.sp, self.orient, self.name+"_path", limit)
+		#for i in range( 1,len(self.path.poses) ):
+		#	print self.name +": "+ str(self.path.poses[i].pose)
 
 	def fly(self):
 		# if self.leader:
@@ -284,11 +286,11 @@ class Impedance_avel:
 		return imp_pose, imp_vel, time_prev
 
 
-# serial_port = serial.Serial('/dev/ttyUSB0', 9600)
-# def send_velocity(pattern):
-#     item = '%s\r' % pattern
-#     serial_port.write(item.encode())
-#     time.sleep(0.025)
+# serial_port = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_956353330313512012D0-if00', 9600)
+def send_velocity(pattern):
+    item = '%s\r' % pattern
+    serial_port.write(item.encode())
+    time.sleep(0.025)
 
 
 def tactile_patterns(drone1_pose_goal, drone2_pose_goal, drone3_pose_goal, prev_pattern_time):
@@ -310,13 +312,12 @@ def tactile_patterns(drone1_pose_goal, drone2_pose_goal, drone3_pose_goal, prev_
 				print "extended, area = ", PolyArea(x,y)
 				extended_pattern()
 				# swarmlib.send_velocity(6)
-				# swarmlib.extended_pattern()
 				prev_pattern_time = time.time()
 
 			elif PolyArea(x,y)<0.04:
 				print "contracted, area = ", PolyArea(x,y)
 				# swarmlib.send_velocity(3)
-				# swarmlib.contracted_pattern()
+				# contracted_pattern()
 				prev_pattern_time = time.time()
 
 		return prev_pattern_time
@@ -379,11 +380,12 @@ def publish_pose(pose, orient, topic_name):
 	pub = rospy.Publisher(topic_name, PoseStamped, queue_size=1)
 	pub.publish(msg)
 
-def publish_path(path, pose, orient, topic_name):
+def publish_path(path, pose, orient, topic_name, limit=1000):
 	msg = msg_def_PoseStamped(pose, orient)
 	path.header = msg.header
 	path.poses.append(msg)
-	path.poses = path.poses[-800:]
+	if limit>0:
+		path.poses = path.poses[-limit:]
 	pub = rospy.Publisher(topic_name, Path, queue_size=1)
 	pub.publish(path)
 
@@ -550,7 +552,7 @@ def extended_pattern():
 	matrix_send(P)
 
 def startXbee():
-	serial_port = serial.Serial('/dev/ttyUSB0', 9600)
+	serial_port = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_956353330313512012D0-if00', 9600)
 
 def send_velocity(pattern):
     item = '%s\r' % pattern

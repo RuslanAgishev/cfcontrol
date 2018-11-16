@@ -82,7 +82,7 @@ Visualization Manager:
       Axes Length: 1
       Axes Radius: 0.100000001
       Class: rviz/Pose
-      Color: 0; 0; 255
+      Color: 255; 255; 0
       Enabled: true
       Head Length: 0.100000001
       Head Radius: 0.100000001
@@ -97,7 +97,7 @@ Visualization Manager:
       Buffer Length: 1
       Class: rviz/Path
       Color: 255; 85; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.300000012
       Head Length: 0.200000003
       Length: 0.300000012
@@ -115,12 +115,12 @@ Visualization Manager:
       Shaft Length: 0.100000001
       Topic: /cf1_path
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
       Color: 170; 255; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.300000012
       Head Length: 0.200000003
       Length: 0.300000012
@@ -138,12 +138,12 @@ Visualization Manager:
       Shaft Length: 0.100000001
       Topic: /cf2_path
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
-      Color: 85; 170; 255
-      Enabled: true
+      Color: 255; 255; 0
+      Enabled: false
       Head Diameter: 0.300000012
       Head Length: 0.200000003
       Length: 0.300000012
@@ -161,7 +161,7 @@ Visualization Manager:
       Shaft Length: 0.100000001
       Topic: /cf3_path
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Axes Length: 0.319999993
       Axes Radius: 0.0399999991
@@ -327,6 +327,201 @@ Visualization Manager:
       Topic: /obstacle_pose
       Unreliable: false
       Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle10_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle11_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle12_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle13_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle15_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle16_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle17_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle18_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle19_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle20_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle21_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle22_pose
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Axes Length: 0.319999993
+      Axes Radius: 0.0399999991
+      Class: rviz/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.300000012
+      Head Radius: 0.100000001
+      Name: Pose
+      Shaft Length: 0.200000003
+      Shaft Radius: 0.0500000007
+      Shape: Axes
+      Topic: /obstacle14_pose
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -352,7 +547,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 12.5490112
+      Distance: 8.52866554
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
@@ -367,10 +562,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 1.56979632
+      Pitch: 1.47479641
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.54856825
+      Yaw: 4.72357702
     Saved: ~
 Window Geometry:
   Displays:
