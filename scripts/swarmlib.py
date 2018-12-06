@@ -4,27 +4,32 @@ from __future__ import division
 import rospy
 import tf
 from geometry_msgs.msg import PoseStamped
-
-
-from math import *
-import math
-import time
-from time import sleep
+from visualization_msgs.msg import Marker
 from std_srvs.srv import Empty
 from tf2_msgs.msg import TFMessage
 from nav_msgs.msg import Path
+from tf import TransformListener
+
+from scipy.integrate import odeint
+from math import *
+import math
+
+import time
+from time import sleep
+
 import message_filters
 import sys
 import numpy as np
-import serial
-from scipy.integrate import odeint
-from tf import TransformListener
+
+from multiprocessing import Process
+import os
 
 from crazyflie_driver.msg import FullState
 from crazyflie_driver.msg import Position
 
+import serial
 
-#np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
+# np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
 
 
 
@@ -50,6 +55,7 @@ class Drone:
 		self.dist_to_obst = np.zeros(len(obstacles))
 		self.drone_time_array = np.ones(10)
 		self.drone_pose_array = np.array([ np.ones(10), np.ones(10), np.ones(10) ])
+		self.rate = rospy.Rate(60)
 
 	def position(self):
 	    self.tl.waitForTransform("/world", self.tf, rospy.Time(0), rospy.Duration(1))
@@ -94,11 +100,16 @@ class Drone:
 		updated_pose = drone.impedance_theta.pose_from_theta( obstacle.position()[:2], R, drone.impedance_theta.imp_theta )
 		return updated_pose
 
-	def update_pose_delta(self, pose_prev, drone):
+	def update_pose_delta(self, pose_prev, drone, koef):
 		drone.impedance_delta.imp_pose, drone.impedance_delta.imp_vel, drone.impedance_delta.imp_time =\
 			drone.impedance_delta.impedance_model(drone.delta, drone.impedance_delta.imp_pose, drone.impedance_delta.imp_vel, drone.impedance_delta.imp_time)
+		delta_pose = drone.impedance_delta.imp_pose[:2]
+		updated_pose = pose_prev + koef*delta_pose
 
-		updated_pose = pose_prev + 0.1*drone.impedance_delta.imp_pose[:2]
+		length = np.linalg.norm(delta_pose)
+		yaw = acos(delta_pose[0] / length)
+		publish_arrow(np.hstack([updated_pose,drone.sp[2]]), [0,0,yaw], 5*length,  '/delta_pose')
+
 		return updated_pose
 
 	def update_pose_avel(self, pose_prev, average_vel):
@@ -143,6 +154,22 @@ class Drone:
 
 		return drone_w, drone_vel
 
+	def landing(self, sim=False):
+		drone_landing_pose = self.position() if sim==False else self.sp
+		while not rospy.is_shutdown():
+			self.sp = drone_landing_pose
+			drone_landing_pose[2] = drone_landing_pose[2]-0.007
+			self.publish_sp()
+			self.publish_path(limit=1000)
+			if sim==False:
+				self.fly()
+			if self.sp[2]<-1.0:
+				sleep(1)
+				if sim==False:
+					cf1.stop()
+				print 'reached the floor, shutdown'
+				rospy.signal_shutdown('landed')
+			self.rate.sleep()
 
 
 class Mocap_object:
@@ -169,13 +196,11 @@ class Mocap_object:
     def publish_position(self):
         publish_pose(self.pose, self.orient, self.name+"_pose")
 
-
-
-
 class Obstacle:
-    def __init__(self, name, id):
+    def __init__(self, name, id, R_obstacle):
         self.name = name
         self.id = id
+        self.R = R_obstacle
         self.tf = '/vicon/'+name+'/'+name
         self.tl = TransformListener()
         self.pose = np.array([0,0,0])
@@ -195,12 +220,12 @@ class Obstacle:
         return get_angles(np.array(quaternion))
 
     def publish_position(self):
-        publish_pose(self.pose, self.orient, self.name+"_pose")
+        # publish_pose(self.pose, self.orient, self.name+"_pose")
+        publish_cylinder(self.pose, self.orient, self.R, self.name+"_cylinder")
 
     def calculate_dist(self, drones_poses):
     	for i in range(len(drones_poses)):
         	self.dist_to_drones[i] = np.linalg.norm(drones_poses[i]-self.pose)
-
 
 
 class Impedance_delta:
@@ -214,7 +239,7 @@ class Impedance_delta:
 		time_step = time.time() - time_prev
 		time_prev = time.time()
 		t = [0. , time_step]
-		F = - delta * F_coeff
+		F =  - delta * F_coeff
 
 		state0_x = [imp_pose_prev[0], imp_vel_prev[0]]
 		state_x = odeint(MassSpringDamper, state0_x, t, args=(F[0],))
@@ -227,7 +252,6 @@ class Impedance_delta:
 		imp_pose = np.array( [state_x[0], state_y[0], 0] )
 		imp_vel  = np.array( [state_x[1], state_y[1], 0] )
 		return imp_pose, imp_vel, time_prev
-
 
 class Impedance_theta:
 	def __init__(self):
@@ -257,8 +281,6 @@ class Impedance_theta:
 	def theta_from_pose(self, object1, object2):
 		theta = np.sign(object1[1]-object2[1]) * acos( (object1[0]-object2[0]) / np.linalg.norm(object1[:2] - object2[:2]) ) # [-pi,pi] - range
 		return theta
-
-
 
 class Impedance_avel:
 	def __init__(self):
@@ -291,7 +313,6 @@ def send_velocity(pattern):
     item = '%s\r' % pattern
     serial_port.write(item.encode())
     time.sleep(0.025)
-
 
 def tactile_patterns(drone1_pose_goal, drone2_pose_goal, drone3_pose_goal, prev_pattern_time):
 		# ############ TACTILE PATTERNS ##########################
@@ -357,6 +378,57 @@ def msg_def_PoseStamped(pose, orient):
 	msg.header.stamp = rospy.Time.now()
 	return msg
 
+def msg_def_Cylinder(pose, orient, shape, R):
+	worldFrame = "world"
+	msg = Marker()
+	msg.header.seq = 0
+	msg.header.stamp = rospy.Time.now()
+	msg.header.frame_id = worldFrame
+	msg.type = shape
+	msg.pose.position.x = pose[0]
+	msg.pose.position.y = pose[1]
+	msg.pose.position.z = pose[2]
+	# quaternion = tf.transformations.quaternion_from_euler(orient[0], orient[1], orient[2])
+	quaternion = tf.transformations.quaternion_from_euler(0,0,0)
+	msg.pose.orientation.x = quaternion[0]
+	msg.pose.orientation.y = quaternion[1]
+	msg.pose.orientation.z = quaternion[2]
+	msg.pose.orientation.w = quaternion[3]
+	msg.scale.x = R
+	msg.scale.y = R
+	msg.scale.z = 2.0
+	msg.color.r = 0.0
+	msg.color.g = 1.0
+	msg.color.b = 0.0
+	msg.color.a = 1.0
+	msg.header.seq += 1
+	msg.header.stamp = rospy.Time.now()
+	return msg
+
+def msg_def_Arrow(pose, orient, length):
+	arrow = Marker()
+	arrow.header.frame_id = "world"
+	arrow.header.stamp = rospy.Time.now()
+	arrow.type = arrow.ARROW
+	arrow.pose.position.x = pose[0]
+	arrow.pose.position.y = pose[1]
+	arrow.pose.position.z = pose[2]
+	quaternion = tf.transformations.quaternion_from_euler(orient[0], orient[1], orient[2]) #1.57
+	arrow.pose.orientation.x = quaternion[0]
+	arrow.pose.orientation.y = quaternion[1]
+	arrow.pose.orientation.z = quaternion[2]
+	arrow.pose.orientation.w = quaternion[3]
+	arrow.scale.x = length
+	arrow.scale.y = 0.02
+	arrow.scale.z = 0.02
+	arrow.color.a = 1.0
+	arrow.color.r = 1.0
+	arrow.color.g = 0.5 
+	arrow.color.b = 0.5
+	arrow.header.seq += 1
+	arrow.header.stamp = rospy.Time.now()
+	return arrow
+
 def publish_goal_pos(cf_goal_pos, cf_goal_yaw, cf_name):
 	name = cf_name + "/cmd_position"
 	msg = msg_def_crazyflie(cf_goal_pos, cf_goal_yaw)
@@ -389,7 +461,17 @@ def publish_path(path, pose, orient, topic_name, limit=1000):
 	pub = rospy.Publisher(topic_name, Path, queue_size=1)
 	pub.publish(path)
 
+def publish_cylinder(pose, orient, R, topic_name):
+	shape = Marker.CYLINDER
+	msg = msg_def_Cylinder(pose, orient, shape, R=R)
+	pub = rospy.Publisher(topic_name, Marker, queue_size=1)
+	pub.publish(msg)
 
+def publish_arrow(pose, orient, length, topic_name):
+	shape = Marker.ARROW
+	msg = msg_def_Arrow(pose, orient, length)
+	pub = rospy.Publisher(topic_name, Marker, queue_size=1)
+	pub.publish(msg)
 
 
 # HUMAN VELOCITY CALCULATION
@@ -417,9 +499,6 @@ def hum_vel(human_pose):
 
 	return hum_vel
 
-
-
-
 # HUMAN IMPEDANCE
 def MassSpringDamper(state,t,F):
 	x = state[0]
@@ -429,6 +508,12 @@ def MassSpringDamper(state,t,F):
 	k = 20.0 # Newtons per meter
 	xdd = -(b/m)*xd - (k/m)*x + F/m
 	return [xd, xdd]
+
+def Pendulum(state, t, M):
+    theta, omega = state
+    J = 1.; b = 10.; k = 0.
+    dydt = [omega, (M - b*omega - k*np.sin(theta)) / J ]
+    return dydt
 
 def impedance_human(hum_vel, imp_pose_prev, imp_vel_prev, time_prev):
 	F_coeff = 12 # 7
@@ -482,9 +567,6 @@ def pub_circle_traj(x0,y0,z0,r,i):
 
 	return i, drone10_pose_goal, drone11_pose_goal
 
-
-
-
 def rotate(origin, drone, human):
 	"""
 	Rotate a point counterclockwise by a given angle around a given origin.
@@ -497,10 +579,6 @@ def rotate(origin, drone, human):
 	qy = oy + math.sin(human.orientation()[2]) * (px - ox) + math.cos(human.orientation()[2]) * (py - oy)
 	
 	return np.array([qx, qy, drone.sp[2]])
-
-
-
-
 
 def centroid_calc(drone1, drone2, drone3):
 	x_aver = np.array([drone1.sp[0], drone2.sp[0], drone3.sp[0]])
@@ -550,10 +628,8 @@ def extended_pattern():
 	# P.append(A)
 
 	matrix_send(P)
-
 def startXbee():
 	serial_port = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_956353330313512012D0-if00', 9600)
-
 def send_velocity(pattern):
     item = '%s\r' % pattern
     serial_port.write(item.encode())
@@ -593,23 +669,6 @@ def matrix_data(Z):
             Z[k][1] = Z[k][1] - c * 10 ** (len(str(Z[k][1])) - 1)
 
 
-
-
-def pose_update_obstacle(drone, obstacle, R):
-	obstacle_pose = obstacle.position()[:2]
-	drone_pose = drone.sp[:2]
-	dist = np.linalg.norm(obstacle_pose-drone_pose)
-	if dist<R:
-		updated_pose = quad_prog_circle(drone_pose, obstacle_pose, R)
-		pose_is_updated = True
-	else:
-		updated_pose = drone_pose
-		pose_is_updated = False
-	updated_pose = np.append(updated_pose, drone.sp[2])
-
-	return updated_pose, pose_is_updated
-
-
 def pose_update_drone(drone, drone_obstacle, R):
 	# drone avoids drone_obstacle on a circle trajectory if they are near
 	# else there is an impedance between them based on their average speed
@@ -626,36 +685,92 @@ def pose_update_drone(drone, drone_obstacle, R):
 	else:
 		updated_pose = drone.update_pose_avel(drone.sp, average_vel)
 	 	pose_is_updated = False
-	
 	return updated_pose, pose_is_updated
 
-
-
-
-def pose_update_obstacle_imp(drone, obstacle, R):
+def pose_update_obstacle(drone, obstacle, R, delta_imp=False):
 	obstacle_pose = obstacle.position()[:2]
-	drone_pose = drone.sp[:2]	
-	drone.theta = drone.impedance_theta.theta_from_pose(drone_pose, obstacle.pose)
-	if drone.dist_to_obstacles()[obstacle.id]<R or abs(drone.d_theta[obstacle.id])>pi/16.:
-		drone.near_obstacle[obstacle.id] += 1
-		updated_pose = drone.update_pose_theta(drone, obstacle, R)
-		drone.d_theta[obstacle.id] = drone.impedance_theta.theta_from_pose(drone_pose, obstacle_pose) - drone.impedance_theta.theta_from_pose(updated_pose, obstacle_pose)
-	else: 
+	drone_pose = drone.sp[:2]
+	dist = np.linalg.norm(obstacle_pose-drone_pose)
+	if dist<R:
+		updated_pose = quad_prog_circle(drone_pose, obstacle_pose, R)
+		pose_is_updated = True
+	else:
 		updated_pose = drone_pose
-		drone.theta = None
-		drone.delta = np.array([0,0])
-		drone.near_obstacle[obstacle.id] = 0
-		
-	# drone.delta = updated_pose - drone_pose
-	# updated_pose = drone.update_pose_delta(updated_pose, drone)
+		pose_is_updated = False
+
+	if delta_imp:
+		drone.delta = updated_pose - drone_pose
+		if np.linalg.norm(drone.delta) > 0:
+			updated_pose = drone.update_pose_delta(updated_pose, drone, koef=0.3)
 
 	updated_pose = np.append(updated_pose, drone.sp[2])
 
-	return updated_pose
+	return updated_pose, pose_is_updated
+
+
+def pose_update_obstacle_imp(drone, obstacle, R, delta_imp=False):
+	obstacle_pose = obstacle.position()[:2]
+	drone_pose = drone.sp[:2]	
+	drone.theta = drone.impedance_theta.theta_from_pose(drone_pose, obstacle.pose)
+	dist = np.linalg.norm(obstacle_pose-drone_pose)
+	# if drone.dist_to_obstacles()[obstacle.id]<R or abs(drone.d_theta[obstacle.id])>pi/16.:
+	if dist<R or abs(drone.d_theta[obstacle.id])>pi/16.:
+		drone.near_obstacle[obstacle.id] += 1
+		updated_pose = drone.update_pose_theta(drone, obstacle, R)
+		drone.d_theta[obstacle.id] = drone.impedance_theta.theta_from_pose(drone_pose, obstacle_pose) - drone.impedance_theta.theta_from_pose(updated_pose, obstacle_pose)
+		pose_is_updated = True
+	else: 
+		updated_pose = drone_pose
+		drone.theta = None
+		drone.d_theta[obstacle.id] = 0
+		drone.delta = np.array([0,0])
+		drone.near_obstacle[obstacle.id] = 0
+		pose_is_updated = False
+		
+	if delta_imp:
+		drone.delta = updated_pose - drone_pose
+		if np.linalg.norm(drone.delta) > 0:
+			updated_pose = drone.update_pose_delta(updated_pose, drone, koef=0.3)
+	updated_pose = np.append(updated_pose, drone.sp[2])
+	return updated_pose, pose_is_updated
+
+def force_impedance_model(R_layer, imp_pose_prev, imp_vel_prev, time_prev):
+	F_coeff = 12 # 7
+	time_step = time.time() - time_prev
+	time_prev = time.time()
+	t = [0. , time_step]
+	F = R_layer * F_coeff
+
+	state0_x = [imp_pose_prev[0], imp_vel_prev[0]]
+	state_x = odeint(MassSpringDamper, state0_x, t, args=(F[0],))
+	state_x = state_x[1]
+
+	state0_y = [imp_pose_prev[1], imp_vel_prev[1]]
+	state_y = odeint(MassSpringDamper, state0_y, t, args=(F[1],))
+	state_y = state_y[1]
+
+	imp_pose = np.array( [state_x[0], state_y[0], 0] )
+	imp_vel  = np.array( [state_x[1], state_y[1], 0] )
+	return imp_pose, imp_vel, time_prev
+
+def pose_update_force(drone):
+	R_layers = np.array([1.0, 0.0])
+	if sum(dists < R_layers[0]) > 0:
+		drone.delta = updated_pose - drone_pose
+		updated_pose = drone.update_pose_delta(updated_pose, drone, koef=5.0)
 
 
 
+	# R_layers = np.array([1.0, 0.9, 0.7, 0.5, 0.3, 0.0])
+	# dists = drone.dist_to_obstacles()
+	# print (np.abs(R_layers - dists[0])).argmin()
+	# print dists[0]
 
+	# if sum(dists < R_layers[0]) > 0:
+	# 	print "\nobstacles detected"
+	# 	for l in range(len(R_layers)):
+	# 		if sum(dists < R_layers[l]) > 0:
+	# 			print "\nlayer", l
 
 def quad_prog_circle(drone_pose, obstacle_pose, R):
 	eq1 = np.array([ [obstacle_pose[0],1], [drone_pose[0],1] ])
@@ -691,11 +806,25 @@ def quad_prog_circle(drone_pose, obstacle_pose, R):
 	return updated_pose
 
 
-def Pendulum(state, t, M):
-    theta, omega = state
-    J = 1.; b = 10.; k = 0.
-    dydt = [omega, (M - b*omega - k*np.sin(theta)) / J ]
-    return dydt
-
-
-
+def recorder(cf1_name, cf2_name, cf3_name, human_name, obstacle_list, user_name, tacile_glove_on):
+	if tacile_glove_on:
+		user_name = user_name+'_with_glove'
+	else:
+		user_name = user_name+'_wo_glove'
+	obstacle_topics = ''
+	for i in range(len(obstacle_list)):
+		obstacle_topics = obstacle_topics +" /vicon/"+obstacle_list[i]+"/"+obstacle_list[i]
+	os.system("rosbag record -o /home/ruslan/Desktop/SwarmTouchData/"+user_name+" /vicon/"+cf1_name+"/"+cf1_name+" /vicon/"+cf2_name+"/"+cf2_name+" /vicon/"+cf3_name+"/"+cf3_name+" /vicon/"+human_name+"/"+human_name+obstacle_topics)
+def start_recording(cf1_name, cf2_name, cf3_name, human_name, obstacle_list, user_name, tacile_glove_on):
+	pose_recording = Process(target=recorder, args=(cf1_name, cf2_name, cf3_name, human_name, obstacle_list, user_name, tacile_glove_on,))
+	pose_recording.start()
+def killer_of_recorder():
+	print 'killing the recorder'
+	node_list = os.popen("rosnode list").read()
+	print node_list
+	for i in range(len(node_list)):
+		if node_list[i:i+5] == '/reco':
+			range_from = i
+			range_to = i + 27
+			break
+	os.system('rosnode kill '+ node_list[range_from:range_to])

@@ -96,5 +96,5 @@
       <param name="dev" value="$(arg joy_dev)" />
   </node-->
 
-  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find cfcontrol)/config/main.rviz" />
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find cfcontrol)/config/rcar.rviz" />
 </launch>
