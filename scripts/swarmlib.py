@@ -11,6 +11,7 @@ from nav_msgs.msg import Path
 from tf import TransformListener
 
 from scipy.integrate import odeint
+from scipy.spatial.distance import cdist
 from math import *
 import math
 
@@ -56,6 +57,8 @@ class Drone:
 		self.drone_time_array = np.ones(10)
 		self.drone_pose_array = np.array([ np.ones(10), np.ones(10), np.ones(10) ])
 		self.rate = rospy.Rate(60)
+		self.traj = np.array([0,0,0])
+		self.feature = self.sp
 
 	def position(self):
 	    self.tl.waitForTransform("/world", self.tf, rospy.Time(0), rospy.Duration(1))
@@ -108,7 +111,7 @@ class Drone:
 
 		length = np.linalg.norm(delta_pose)
 		yaw = acos(delta_pose[0] / length)
-		publish_arrow(np.hstack([updated_pose,drone.sp[2]]), [0,0,yaw], 5*length,  '/delta_pose')
+		publish_arrow(np.hstack([updated_pose,drone.sp[2]]), [0,0,yaw], length,  '/delta_pose')
 
 		return updated_pose
 
@@ -227,6 +230,13 @@ class Obstacle:
     	for i in range(len(drones_poses)):
         	self.dist_to_drones[i] = np.linalg.norm(drones_poses[i]-self.pose)
 
+    def circle_points(self, N=1000):
+    	C = np.zeros((N,2))
+    	# C[0,:] = self.position()[0] + self.R*np.cos(np.linspace(-pi,pi,N))
+    	# C[1,:] = self.position()[1] + self.R*np.sin(np.linspace(-pi,pi,N))
+    	C[:,0] = self.pose[0] + self.R*np.cos(np.linspace(-pi,pi,N))
+    	C[:,1] = self.pose[1] + self.R*np.sin(np.linspace(-pi,pi,N))
+    	return C
 
 class Impedance_delta:
 	def __init__(self):
@@ -306,6 +316,13 @@ class Impedance_avel:
 		imp_pose = np.array( [state_x[0], state_y[0], 0] )
 		imp_vel  = np.array( [state_x[1], state_y[1], 0] )
 		return imp_pose, imp_vel, time_prev
+
+
+def intersection(curve1, curve2):
+	dists = cdist(curve1,curve2)
+	i1, i2 = np.where(dists==np.min(dists))
+	i1 = i1[0]; i2 = i2[0]
+	return np.array([curve1[i1,0], curve1[i1,1]])
 
 
 # serial_port = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_956353330313512012D0-if00', 9600)
@@ -713,12 +730,20 @@ def pose_update_obstacle_imp(drone, obstacle, R, delta_imp=False):
 	drone_pose = drone.sp[:2]	
 	drone.theta = drone.impedance_theta.theta_from_pose(drone_pose, obstacle.pose)
 	dist = np.linalg.norm(obstacle_pose-drone_pose)
-	# if drone.dist_to_obstacles()[obstacle.id]<R or abs(drone.d_theta[obstacle.id])>pi/16.:
-	if dist<R or abs(drone.d_theta[obstacle.id])>pi/16.:
+	# if drone.dist_to_obstacles()[obstacle.id]<R: #or abs(drone.d_theta[obstacle.id])>pi/16.:
+	if dist < R:
 		drone.near_obstacle[obstacle.id] += 1
 		updated_pose = drone.update_pose_theta(drone, obstacle, R)
 		drone.d_theta[obstacle.id] = drone.impedance_theta.theta_from_pose(drone_pose, obstacle_pose) - drone.impedance_theta.theta_from_pose(updated_pose, obstacle_pose)
 		pose_is_updated = True
+		# obstacle-based feature set-point calculation
+		center_ind =  np.min( np.where(np.abs(drone.traj[:,:2]-obstacle.position()[:2])<0.01), axis=1 )[0]
+		line = drone.traj[center_ind:,:2]
+		circumference = obstacle.circle_points()
+		X, Y = intersection(line, circumference)
+		X = X + (obstacle.position()[0]-X)*0.2 # the feature set-point should be located inside the circumference
+		Y = Y + (obstacle.position()[1]-Y)*0.2 # a bit close to the obstacle center
+		drone.feature = np.array([X,Y,drone.sp[2]])
 	else: 
 		updated_pose = drone_pose
 		drone.theta = None
@@ -726,12 +751,12 @@ def pose_update_obstacle_imp(drone, obstacle, R, delta_imp=False):
 		drone.delta = np.array([0,0])
 		drone.near_obstacle[obstacle.id] = 0
 		pose_is_updated = False
-		
 	if delta_imp:
 		drone.delta = updated_pose - drone_pose
 		if np.linalg.norm(drone.delta) > 0:
-			updated_pose = drone.update_pose_delta(updated_pose, drone, koef=0.3)
+			updated_pose = drone.update_pose_delta(updated_pose, drone, koef=0.15)
 	updated_pose = np.append(updated_pose, drone.sp[2])
+
 	return updated_pose, pose_is_updated
 
 def force_impedance_model(R_layer, imp_pose_prev, imp_vel_prev, time_prev):

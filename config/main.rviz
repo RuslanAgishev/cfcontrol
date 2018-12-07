@@ -76,7 +76,7 @@ Visualization Manager:
       Axes Radius: 0.100000001
       Class: rviz/Pose
       Color: 0; 170; 0
-      Enabled: false
+      Enabled: true
       Head Length: 0.100000001
       Head Radius: 0.100000001
       Name: Pose
@@ -85,13 +85,13 @@ Visualization Manager:
       Shape: Arrow
       Topic: /cf2_sp
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Axes Length: 1
       Axes Radius: 0.100000001
       Class: rviz/Pose
       Color: 255; 255; 0
-      Enabled: false
+      Enabled: true
       Head Length: 0.100000001
       Head Radius: 0.100000001
       Name: Pose
@@ -100,12 +100,12 @@ Visualization Manager:
       Shape: Arrow
       Topic: /cf3_sp
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
       Color: 255; 85; 0
-      Enabled: true
+      Enabled: false
       Head Diameter: 0.300000012
       Head Length: 0.200000003
       Length: 0.300000012
@@ -123,7 +123,7 @@ Visualization Manager:
       Shaft Length: 0.100000001
       Topic: /cf1_path
       Unreliable: false
-      Value: true
+      Value: false
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -625,7 +625,7 @@ Visualization Manager:
       Marker Topic: /cylinder
       Name: Marker
       Namespaces:
-        "": true
+        {}
       Queue Size: 1
       Value: true
   Enabled: true

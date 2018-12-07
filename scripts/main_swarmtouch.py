@@ -23,18 +23,18 @@ np.set_printoptions(formatter={'float': '{: 0.2f}'.format})
 import swarmlib
 
 # PARAMETERs #############
-toFly            = 0
+toFly            = 1
 vel_ctrl         = 0
 vel_koef         = 4.0
 pos_ctrl		 = 1
-pos_coef         = 3.5
+pos_coef         = 2.0
 const_height	 = 1
 human_imp        = False
-theta_imp        = True
+theta_imp        = False
 force_imp        = False
 put_limits       = 0
 TAKEOFFHEIGHT    = 1.45 # meters
-HUMAN_Z_TO_LAND  = 0.8 # meters
+HUMAN_Z_TO_LAND  = 0.6 # meters
 TakeoffTime      = 5     # seconds
 l                = 0.40     # distance between drones, meters
 R_obstacles      = 0.25
@@ -100,15 +100,15 @@ if __name__ == '__main__':
 
 	if toFly:
 		print "takeoff"
-		cf1 = crazyflie.Crazyflie(cf_names[0], '/vicon/'+cf_names[0]+'/'+cf_names[0])
-		cf1.setParam("commander/enHighLevel", 1)
-		cf1.takeoff(targetHeight = TAKEOFFHEIGHT, duration = 2.0)
+		# cf1 = crazyflie.Crazyflie(cf_names[0], '/vicon/'+cf_names[0]+'/'+cf_names[0])
+		# cf1.setParam("commander/enHighLevel", 1)
+		# cf1.takeoff(targetHeight = TAKEOFFHEIGHT, duration = 2.0)
 		cf2 = crazyflie.Crazyflie(cf_names[1], '/vicon/'+cf_names[1]+'/'+cf_names[1])
 		cf2.setParam("commander/enHighLevel", 1)
 		cf2.takeoff(targetHeight = TAKEOFFHEIGHT, duration = 2.0)
-		cf3 = crazyflie.Crazyflie(cf_names[2], '/vicon/'+cf_names[2]+'/'+cf_names[2])
-		cf3.setParam("commander/enHighLevel", 1)
-		cf3.takeoff(targetHeight = TAKEOFFHEIGHT, duration = 2.0)
+		# cf3 = crazyflie.Crazyflie(cf_names[2], '/vicon/'+cf_names[2]+'/'+cf_names[2])
+		# cf3.setParam("commander/enHighLevel", 1)
+		# cf3.takeoff(targetHeight = TAKEOFFHEIGHT, duration = 2.0)
 		#time to takeoff and select position for human
 		time.sleep(TakeoffTime)
 
@@ -194,16 +194,16 @@ if __name__ == '__main__':
 		# OBSTACLEs
 		# centroid_before_obstacles = swarmlib.centroid_calc(drone1, drone2, drone3)
 
-		if theta_imp:
-			for i in range(len(obstacle)):
-				drone1.sp, updated_1 = swarmlib.pose_update_obstacle_imp(drone1, obstacle[i], R_obstacles, delta_imp=False)
-				drone2.sp, updated_2 = swarmlib.pose_update_obstacle_imp(drone2, obstacle[i], R_obstacles, delta_imp=False)
-				drone3.sp, updated_3 = swarmlib.pose_update_obstacle_imp(drone3, obstacle[i], R_obstacles, delta_imp=False)
-		else:
-			for i in range(len(obstacle)):
-				drone1.sp, updated_1 = swarmlib.pose_update_obstacle(drone1, obstacle[i], R_obstacles)
-				drone2.sp, updated_2 = swarmlib.pose_update_obstacle(drone2, obstacle[i], R_obstacles)
-				drone3.sp, updated_3 = swarmlib.pose_update_obstacle(drone3, obstacle[i], R_obstacles)
+		# if theta_imp:
+		# 	for i in range(len(obstacle)):
+		# 		drone1.sp, updated_1 = swarmlib.pose_update_obstacle_imp(drone1, obstacle[i], R_obstacles, delta_imp=False)
+		# 		drone2.sp, updated_2 = swarmlib.pose_update_obstacle_imp(drone2, obstacle[i], R_obstacles, delta_imp=False)
+		# 		drone3.sp, updated_3 = swarmlib.pose_update_obstacle_imp(drone3, obstacle[i], R_obstacles, delta_imp=False)
+		# else:
+		# 	for i in range(len(obstacle)):
+		# 		drone1.sp, updated_1 = swarmlib.pose_update_obstacle(drone1, obstacle[i], R_obstacles)
+		# 		drone2.sp, updated_2 = swarmlib.pose_update_obstacle(drone2, obstacle[i], R_obstacles)
+		# 		drone3.sp, updated_3 = swarmlib.pose_update_obstacle(drone3, obstacle[i], R_obstacles)
 
 
 		# # 2-nd and 3-rd drones avoid the 1-st
@@ -262,9 +262,9 @@ if __name__ == '__main__':
 				drone3.fly()
 				if drone1.sp[2]<-1.0 and drone2.sp[2]<-1.0 and drone2.sp[2]<-1.0:
 					sleep(1)
-					cf1.stop()
+					# cf1.stop()
 					cf2.stop()
-					cf3.stop()
+					# cf3.stop()
 					print 'reached the floor, shutdown'
 					rospy.signal_shutdown('landed')
 				rate.sleep()
