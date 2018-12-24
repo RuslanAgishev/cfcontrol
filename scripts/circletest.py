@@ -2,8 +2,8 @@ import numpy as np
 from swarmlib import *
 import matplotlib.pyplot as plt
 
-obstacle = Obstacle('o1', 0, 0.3)
-C = obstacle.circle_points()
+obstacle = Obstacle('obstacle0', 0, 0.3)
+C = obstacle.circle_points(0.55)
 l = np.vstack([np.linspace(0,0.5,100), 0.2*np.ones(100)]).T
 
 from scipy.spatial.distance import cdist

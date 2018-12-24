@@ -37,28 +37,31 @@ pos_ctrl		 = 1
 pos_coef         = 3.5
 const_height	 = 1
 human_imp        = False
-theta_imp        = True
-delta_imp        = True
+ang_imp          = True
+rad_imp          = True
 force_imp        = False
 put_limits       = 0
-TAKEOFFHEIGHT    = 1.45 # meters
+TAKEOFFHEIGHT    = 0.8 # meters
 HUMAN_Z_TO_LAND  = 0.8  # meters
 TakeoffTime      = 5    # seconds
-l                = 0.40 # distance between drones, meters
 R_obstacles      = 0.25
+R_swarm          = 0.20
 limits           = np.array([ 1.7, 1.7, 2.5 ]) # limits desining safety flight area in the room
 limits_negative  = np.array([-1.7, -1.5, -0.1 ])
 rotation 		 = 0
-TimeFlightSec    = 15 # [s]
+TimeFlightSec    = 10 # [s]
+ViconRate        = 100 # [Hz]
 
 cf_names         = np.array(['cf1',
 							 'cf2',
-							 'cf3'])
+							 'cf3'
+							 ])
 obstacle_names   = np.array([
 							 'obstacle0',
-							 'obstacle1',
-							 'obstacle2',
+							 # 'obstacle1',
+							 # 'obstacle2',
 							 'obstacle3',
+							 'obstacle4',
 							 ])
 
 
@@ -77,53 +80,98 @@ if __name__ == '__main__':
 	for i in range(len(obstacle_names)):
 		obstacles = np.append(obstacles, swarmlib.Obstacle( obstacle_names[i], i, R_obstacles))
 	drone1 = swarmlib.Drone(cf_names[0], obstacles)
+	drone2 = swarmlib.Drone(cf_names[1], obstacles)
+	drone3 = swarmlib.Drone(cf_names[2], obstacles)
+	centroid = swarmlib.Centroid(obstacles)
 
-	N_samples = 60 * TimeFlightSec
-				 #                  [X]                                    [Y]                            [Z]
-	drone1.traj = np.array([np.linspace(-2.0, 1.0, N_samples), 0.7*np.ones(N_samples), TAKEOFFHEIGHT* np.ones(N_samples)]).T
+	centroid.start = obstacles[0].position() + np.array([-1.5,0,TAKEOFFHEIGHT])
+	centroid.goal  = obstacles[2].position() + np.array([1,0,TAKEOFFHEIGHT])
+	xs, ys, zs = centroid.start
+	xg, yg, zg = centroid.goal
+	N_samples = ViconRate * TimeFlightSec
+				    #                  [X]                                    [Y]                            [Z]
+	centroid.traj = np.array([np.linspace(xs, xg, N_samples), np.linspace(ys, yg, N_samples), np.linspace(zs, zg, N_samples)]).T
 
 	sp_ind = 0
-	rate = rospy.Rate(60)
+	rate = rospy.Rate(ViconRate)
 	while not rospy.is_shutdown():
 		for i in range(len(obstacles)):
 			obstacles[i].publish_position()
 
-		traj_sp = drone1.traj[sp_ind,:]
-		drone1.sp = traj_sp
+		centroid.sp = centroid.traj[sp_ind,:]
 
 		if put_limits:
 			np.putmask(drone1.sp, drone1.sp >= limits, limits)
 			np.putmask(drone1.sp, drone1.sp <= limits_negative, limits_negative)
 
-		near = sum( abs(drone1.d_theta)>pi/8. )>0
+		near = sum( abs(centroid.d_theta)>pi/16. )>0
 		if near:
-			drone1.sp = drone1.feature
+			centroid.sp = centroid.feature
 		else:
 			sp_ind += 1
 
 		# OBSTACLEs
-		if theta_imp:
+		if ang_imp:
 			for i in range(len(obstacles)):
-				drone1.sp, updated_1 = swarmlib.pose_update_obstacle_imp(drone1, obstacles[i], R_obstacles, delta_imp=delta_imp)
+				centroid.sp, updated_1 = swarmlib.pose_update_obstacle_imp(centroid, obstacles[i], R_obstacles+R_swarm, rad_imp=rad_imp, rad_imp_koef=0.15)
 		else:
 			for i in range(len(obstacles)):
-				drone1.sp, updated_1 = swarmlib.pose_update_obstacle(drone1, obstacles[i], R_obstacles, delta_imp=delta_imp)
+				centroid.sp, updated_1 = swarmlib.pose_update_obstacle(centroid, obstacles[i], R_obstacles+R_swarm, rad_imp=rad_imp, rad_imp_koef=0.3)
+
+		""" drones forming equilateral triangle """
+		drone1.sp = centroid.sp + np.array([R_swarm,     0,                   0])
+		drone2.sp = centroid.sp + np.array([-R_swarm/2., R_swarm*sqrt(3)/2.,  0])
+		drone3.sp = centroid.sp + np.array([-R_swarm/2., -R_swarm*sqrt(3)/2., 0])
 
 		# TO FLY
 		if toFly:
 			drone1.fly()
+			drone2.fly()
+			drone3.fly()
 
 		# TO VISUALIZE
-		swarmlib.publish_pose(drone1.feature, np.array([0,0,0,1]), '/feature')
-		swarmlib.publish_pose(drone1.traj[sp_ind,:], np.array([0,0,0,1]), '/traj1')
+		""" setpoints """
+		swarmlib.publish_pose(centroid.feature, np.array([0,0,0,1]), '/feature_centroid')
+		centroid.publish_sp()
 		drone1.publish_sp()
-		drone1.publish_path(limit=N_samples)
+		drone2.publish_sp()
+		drone3.publish_sp()
 
-		# Landing
+		""" paths """
+		centroid.publish_path(limit=N_samples)
+		drone1.publish_path(limit=N_samples)
+		drone2.publish_path(limit=N_samples)
+		drone3.publish_path(limit=N_samples)
+
+		# if sp_ind >= N_samples-1: sp_ind = N_samples-1 # holding the last pose
+		""" Landing """
 		if sp_ind == N_samples-1:
 			print 'Landing!!!'
-			drone1.landing(sim=True)
+			drone1_landing_pose = drone1.sp
+			drone2_landing_pose = drone2.sp
+			drone3_landing_pose = drone3.sp
+			while not rospy.is_shutdown():
+				drone1.sp = drone1_landing_pose
+				drone2.sp = drone2_landing_pose
+				drone3.sp = drone3_landing_pose
+				drone1_landing_pose[2] = drone1_landing_pose[2]-0.007
+				drone2_landing_pose[2] = drone2_landing_pose[2]-0.007
+				drone3_landing_pose[2] = drone3_landing_pose[2]-0.007
+				if toFly:
+					drone1.fly()
+					drone2.fly()
+					drone3.fly()
+				drone1.publish_sp()
+				drone2.publish_sp()
+				drone3.publish_sp()
+				if drone1.sp[2]<-1.0 and drone2.sp[2]<-1.0 and drone2.sp[2]<-1.0:
+					sleep(1)
+					if toFly:
+						cf1.stop()
+						cf2.stop()
+						cf3.stop()
+					print 'reached the floor, shutdown'
+					rospy.signal_shutdown('landed')
+				rate.sleep()
 
 		rate.sleep()
-
-
