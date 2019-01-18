@@ -49,7 +49,7 @@ def GradientBasedPlanner (f, start_coords, end_coords, max_its):
             return route
         ix = int(round( current_point[1] ));
         iy = int(round( current_point[0] ));
-        # w = 20
+        # w = 2 # w=2 - min smoothing window to estimate mean gradient
         w = 20
         vx = np.mean(gx[ix-int(w/2):ix+int(w/2), iy-int(w/2):iy+int(w/2)])
         vy = np.mean(gy[ix-int(w/2):ix+int(w/2), iy-int(w/2):iy+int(w/2)])
@@ -96,47 +96,18 @@ def grid2meters(pose_grid, nrows=500, ncols=500):
 def savedata(data, figure, path):
     #style0 = xlwt.easyxf('font: name Times New Roman, color-index red, bold on', num_format_str='#,##0.00')
     #style1 = xlwt.easyxf(num_format_str='D-MMM-YY')
-
     wb = xlwt.Workbook()
     ws = wb.add_sheet('route')
-
     ws.write(0, 0, 'X, [m]'); ws.write(0, 1, 'Y, [m]')
     for row in range(1,route.shape[0]):
         ws.write(row, 0, route[row, 0]); ws.write(row, 1, route[row, 1])
     wb.save(path+'output.xls')
-    figure.savefig(path+'route.png', dpi=fig.dpi)
-
-def execute_trajectory(cfname, traj, rate):
-    msg = Position()
-    msg.header.seq = 0
-    msg.header.stamp = rospy.Time.now()
-    msg.header.frame_id = "/world"
-
-    pub = rospy.Publisher(cfname+"/cmd_position", Position, queue_size=1)
-    stop_pub = rospy.Publisher(cfname+"/cmd_stop", Empty, queue_size=1)
-    stop_msg = Empty()
-
-    start_time = rospy.Time.now()
-
-    for i in range(len(traj)):
-        msg.header.seq += 1
-        msg.header.stamp = rospy.Time.now()
-        t = (msg.header.stamp - start_time).to_sec()
-        
-        msg.x    = traj[i,0]
-        msg.y    = traj[i,1]
-        msg.z    = TakeoffHeight
-        msg.yaw  = 0
-
-        pub.publish(msg)
-        rate.sleep()
-    print('Trajectory time: ', str(round(t,2))+' sec')
-    return msg
+    figure.savefig(path+'route.png', dpi=fig.dpi)    
 
 
 """ initialization """
 visualize     = 1
-toFly         = 0
+toFly         = 1
 direction     = 'forward'
 TakeoffTime   = 3.0 # [s]
 TakeoffHeight = 0.5 # [m]
@@ -255,14 +226,38 @@ if toFly:
 
     rate = rospy.Rate(40)
 
-    msg = execute_trajectory(cf_names[0], route, rate)
+    msg = Position()
+    msg.header.seq = 0
+    msg.header.stamp = rospy.Time.now()
+    msg.header.frame_id = "/world"
+
+    cfname = cf_names[0]
+    pub = rospy.Publisher(cfname+"/cmd_position", Position, queue_size=1)
+    stop_pub = rospy.Publisher(cfname+"/cmd_stop", Empty, queue_size=1)
+    stop_msg = Empty()
+
+    print('Executing trajectory...')
+    start_time = rospy.Time.now()
+    for i in range(len(route)):
+        msg.header.seq += 1
+        msg.header.stamp = rospy.Time.now()
+        t = (msg.header.stamp - start_time).to_sec()
+        
+        msg.x    = route[i,0]
+        msg.y    = route[i,1]
+        msg.z    = TakeoffHeight
+        msg.yaw  = 0
+
+        pub.publish(msg)
+        rate.sleep()
+    print('Trajectory time: ', str(round(t,2))+' sec')
 
     print('Landing...')
     while not rospy.is_shutdown():
         msg.z -= 0.02
         if ( msg.z < -1.0 ):
             time.sleep(1)
-            cf1.stop()
+            # cf1.stop()
             print('reached the floor, shutdown')
             rospy.signal_shutdown('landed')
         msg.header.seq += 1
