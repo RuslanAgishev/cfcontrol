@@ -35,8 +35,8 @@ import matplotlib.pyplot as plt
 
 class Centroid:
 	"""Centroid of the Swarm object"""
-	def __init__(self, obstacles):
-		self.name = 'centroid'
+	def __init__(self, obstacles, name='centroid'):
+		self.name = name
 		self.tf = '/vicon/'+self.name+'/'+self.name
 		self.pose = np.array([-5, -5, 0])
 		self.orient = np.array([0,0,0])
@@ -93,6 +93,7 @@ class Centroid:
 		# print('v_t', drone_vel_t[:2])
 		if (sum(drone.near_obstacle) <= 10): # 10 is the number of samples to compute velocity from consequent poses
 			drone.radius_impedance.imp_vel = np.hstack((drone_vel_n, 0))
+			# drone.radius_impedance.imp_vel = drone_vel
 		drone.radius_impedance.imp_pose, \
 		drone.radius_impedance.imp_vel, \
 		drone.radius_impedance.imp_time = \
@@ -156,7 +157,7 @@ class Drone:
 		self.tf = '/vicon/'+name+'/'+name
 		self.leader = leader
 		self.tl = TransformListener()
-		self.pose = np.array([0,0,0])
+		self.pose = self.position()
 		self.orient = np.array([0,0,0])
 		self.sp = self.position()
 		self.obstacles = obstacles
@@ -334,7 +335,7 @@ class Obstacle:
         self.R = R_obstacle
         self.tf = '/vicon/'+name+'/'+name
         self.tl = TransformListener()
-        self.pose = np.array([0,0,0])
+        self.pose = self.position()
         self.orient = np.array([0,0,0])
         self.dist_to_drones = np.zeros(3)
 
@@ -535,7 +536,7 @@ def msg_def_Cylinder(pose, orient, shape, R):
 	msg.type = shape
 	msg.pose.position.x = pose[0]
 	msg.pose.position.y = pose[1]
-	msg.pose.position.z = pose[2] + 1.0
+	msg.pose.position.z = pose[2] * 0.5
 	# quaternion = tf.transformations.quaternion_from_euler(orient[0], orient[1], orient[2])
 	quaternion = tf.transformations.quaternion_from_euler(0,0,0)
 	msg.pose.orientation.x = quaternion[0]
@@ -849,6 +850,7 @@ def pose_update_obstacle(drone, obstacle, R, rad_imp=False, rad_imp_koef=0.3):
 		drone.delta = updated_pose - drone_pose
 		if np.linalg.norm(drone.delta) > 0:
 			updated_pose = drone.update_pose_radius(updated_pose, drone, obstacle.position()-drone.sp, koef=rad_imp_koef)
+			# updated_pose -= rad_imp_koef*drone.delta
 
 	updated_pose = np.append(updated_pose, drone.sp[2])
 
@@ -871,8 +873,8 @@ def pose_update_obstacle_imp(drone, obstacle, R, rad_imp=False, rad_imp_koef=0.1
 		line = drone.traj[center_ind:,:2]
 		circumference = obstacle.circle_points(R)
 		X, Y = intersection(line, circumference)
-		X = X + (obstacle.position()[0]-X)*0.3 # the feature set-point should be located inside the circumference
-		Y = Y + (obstacle.position()[1]-Y)*0.3 # a bit close to the obstacle center
+		X = X + (obstacle.position()[0]-X)*0.2 # the feature set-point should be located inside the circumference
+		Y = Y + (obstacle.position()[1]-Y)*0.2 # a bit close to the obstacle center
 		drone.feature = np.array([X, Y, drone.sp[2]])
 		# plt.figure()
 		# plt.title(obstacle.name)
@@ -893,6 +895,7 @@ def pose_update_obstacle_imp(drone, obstacle, R, rad_imp=False, rad_imp_koef=0.1
 		drone.delta = updated_pose - drone_pose
 		if np.linalg.norm(drone.delta) > 0:
 			updated_pose = drone.update_pose_radius(updated_pose, drone, obstacle.position()-drone.sp, koef=rad_imp_koef)
+			# updated_pose -= rad_imp_koef*drone.delta
 	updated_pose = np.append(updated_pose, drone.sp[2])
 
 	return updated_pose, pose_is_updated
