@@ -6,6 +6,7 @@ from crazyflie_driver.msg import Hover
 from std_msgs.msg import Empty
 from crazyflie_driver.srv import UpdateParams
 from threading import Thread
+import time
 
 class Crazyflie:
     def __init__(self, prefix):
@@ -167,7 +168,7 @@ def handler(cf):
 if __name__ == '__main__':
     rospy.init_node('hover', anonymous=True)
 
-    cf1 = Crazyflie("cf1")
+    cf1 = Crazyflie("cf2")
     # cf2 = Crazyflie("cf2")
     # cf3 = Crazyflie("cf3")
 
