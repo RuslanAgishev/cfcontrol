@@ -169,7 +169,7 @@ def handler(cf):
 if __name__ == '__main__':
     rospy.init_node('hover', anonymous=True)
 
-    cf1 = Crazyflie("cf3")
+    cf1 = Crazyflie("cf2")
     # cf2 = Crazyflie("cf2")
     # cf3 = Crazyflie("cf3")
 
