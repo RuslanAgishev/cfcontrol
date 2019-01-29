@@ -8,6 +8,7 @@ from crazyflie_driver.srv import UpdateParams
 from threading import Thread
 import time
 
+
 class Crazyflie:
     def __init__(self, prefix):
         self.prefix = prefix
