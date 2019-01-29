@@ -107,7 +107,7 @@ def savedata(data, figure, path):
 
 """ initialization """
 visualize     = 1
-toFly         = 1
+toFly         = 0
 direction     = 'forward'
 TakeoffTime   = 3.0 # [s]
 TakeoffHeight = 0.5 # [m]
@@ -150,7 +150,7 @@ def callback4(data):
     pose4 = [data.transform.translation.x, data.transform.translation.y]
 
 rospy.init_node('motion_planning', anonymous=True)
-pos_sub = rospy.Subscriber('/vicon/'+cf_names[0]+'/'+cf_names[0], TransformStamped, pos_callback)
+pos_sub = rospy.Subscriber('/vicon/'+cf_names[2]+'/'+cf_names[2], TransformStamped, pos_callback)
 
 rospy.Subscriber("/vicon/obstacle0/obstacle0", TransformStamped, callback0)
 rospy.Subscriber("/vicon/obstacle3/obstacle3", TransformStamped, callback3)
@@ -207,62 +207,62 @@ for pose in fake_obstacles:
     ax.add_artist(circle)
 
 PATH = '/home/ruslan/Desktop/'
-savedata(route, fig, PATH)
+# savedata(route, fig, PATH)
 if visualize:
     plt.show()
 
 """ Flight: takeoff -> trajectory following -> landing """
 if toFly:
     print("takeoff")
-    # cf1 = crazyflie.Crazyflie(cf_names[0], '/vicon/'+cf_names[0]+'/'+cf_names[0])
-    # cf1.setParam("commander/enHighLevel", 1)
-    # cf1.setParam("stabilizer/estimator", 2) # Use EKF
-    # cf1.setParam("stabilizer/controller", 2) # Use Mellinger controller
-    # cf1.takeoff(targetHeight = TakeoffHeight, duration = TakeoffTime)
-    # time.sleep(TakeoffTime+1)
+    cf1 = crazyflie.Crazyflie(cf_names[2], '/vicon/'+cf_names[2]+'/'+cf_names[2])
+    cf1.setParam("commander/enHighLevel", 1)
+    cf1.setParam("stabilizer/estimator", 2) # Use EKF
+    cf1.setParam("stabilizer/controller", 2) # Use Mellinger controller
+    cf1.takeoff(targetHeight = TakeoffHeight, duration = TakeoffTime)
+    time.sleep(TakeoffTime+1)
 
-    # cf1.land(targetHeight = 0.0, duration = 2.0)
-    # time.sleep(3.0)
+    cf1.land(targetHeight = 0.0, duration = 2.0)
+    time.sleep(3.0)
 
-    rate = rospy.Rate(40)
+    # rate = rospy.Rate(40)
 
-    msg = Position()
-    msg.header.seq = 0
-    msg.header.stamp = rospy.Time.now()
-    msg.header.frame_id = "/world"
+    # msg = Position()
+    # msg.header.seq = 0
+    # msg.header.stamp = rospy.Time.now()
+    # msg.header.frame_id = "/world"
 
-    cfname = cf_names[0]
-    pub = rospy.Publisher(cfname+"/cmd_position", Position, queue_size=1)
-    stop_pub = rospy.Publisher(cfname+"/cmd_stop", Empty, queue_size=1)
-    stop_msg = Empty()
+    # cfname = cf_names[0]
+    # pub = rospy.Publisher(cfname+"/cmd_position", Position, queue_size=1)
+    # stop_pub = rospy.Publisher(cfname+"/cmd_stop", Empty, queue_size=1)
+    # stop_msg = Empty()
 
-    print('Executing trajectory...')
-    start_time = rospy.Time.now()
-    for i in range(len(route)):
-        msg.header.seq += 1
-        msg.header.stamp = rospy.Time.now()
-        t = (msg.header.stamp - start_time).to_sec()
+    # print('Executing trajectory...')
+    # start_time = rospy.Time.now()
+    # for i in range(len(route)):
+    #     msg.header.seq += 1
+    #     msg.header.stamp = rospy.Time.now()
+    #     t = (msg.header.stamp - start_time).to_sec()
         
-        msg.x    = route[i,0]
-        msg.y    = route[i,1]
-        msg.z    = TakeoffHeight
-        msg.yaw  = 0
+    #     msg.x    = route[i,0]
+    #     msg.y    = route[i,1]
+    #     msg.z    = TakeoffHeight
+    #     msg.yaw  = 0
 
-        pub.publish(msg)
-        rate.sleep()
-    print('Trajectory time: ', str(round(t,2))+' sec')
+    #     pub.publish(msg)
+    #     rate.sleep()
+    # print('Trajectory time: ', str(round(t,2))+' sec')
 
-    print('Landing...')
-    while not rospy.is_shutdown():
-        msg.z -= 0.02
-        if ( msg.z < -1.0 ):
-            time.sleep(1)
-            # cf1.stop()
-            print('reached the floor, shutdown')
-            rospy.signal_shutdown('landed')
-        msg.header.seq += 1
-        msg.header.stamp = rospy.Time.now()
-        pub.publish(msg)
-        rate.sleep()
-    stop_pub.publish(stop_msg)
+    # print('Landing...')
+    # while not rospy.is_shutdown():
+    #     msg.z -= 0.02
+    #     if ( msg.z < -1.0 ):
+    #         time.sleep(1)
+    #         # cf1.stop()
+    #         print('reached the floor, shutdown')
+    #         rospy.signal_shutdown('landed')
+    #     msg.header.seq += 1
+    #     msg.header.stamp = rospy.Time.now()
+    #     pub.publish(msg)
+    #     rate.sleep()
+    # stop_pub.publish(stop_msg)
 
