@@ -115,9 +115,12 @@
     <node pkg="tf" type="static_transform_publisher" name="baselink_broadcaster" args="0 0 0 0 0 0 1 $(arg frame4) /cf4/base_link 100" />
   </group>
 
+<<<<<<< HEAD
 
 
 
+=======
+>>>>>>> 831b16861c87b18fc7537fca6f65b66e8d20b975
 
   <!-- run vicon bridge -->
   <include file="$(find vicon_bridge)/launch/vicon.launch"/>
