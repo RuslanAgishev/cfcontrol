@@ -3,6 +3,7 @@
 import numpy as np
 import time
 import sys
+from threading import Thread
 
 """ ROS """
 import rospy
@@ -16,6 +17,7 @@ def test(cf_name):
 	cf1.setParam("commander/enHighLevel", 1)
 	cf1.setParam("stabilizer/estimator", 2) # Use EKF
 	cf1.setParam("stabilizer/controller", 2) # Use Mellinger controller
+	print(cf_name+" takeoff")
 	cf1.takeoff(targetHeight = TakeoffHeight, duration = TakeoffTime)
 	time.sleep(TakeoffTime+1)
 
@@ -23,18 +25,19 @@ def test(cf_name):
 	time.sleep(3.0)
 
 """ init """
-TakeoffHeight = 1.2
-TakeoffTime   = 3.0
+TakeoffHeight = 1.8
+TakeoffTime   = 6.0
 toFly         = 1
 
-try:
-	cf_name = sys.argv[1]
-except:
-	cf_name = 'cf1'
 
-print(cf_name)
 
 if toFly:
-	print(cf_name+" takeoff")
-	test(cf_name)
+    t1 = Thread(target=test, args=('cf1',))
+    t2 = Thread(target=test, args=('cf2',))
+    t3 = Thread(target=test, args=('cf3',))
+    t4 = Thread(target=test, args=('cf4',))
+    t1.start()
+    t2.start()
+    t3.start()
+    t4.start()
 
