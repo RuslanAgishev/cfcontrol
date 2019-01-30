@@ -13,8 +13,8 @@ import crazyflie
 
 
 """ init """
-TakeoffHeight = 0.5
-TakeoffTime   = 2.0
+TakeoffHeight = 2.1
+TakeoffTime   = 5.0
 toFly         = 1
 
 try:
@@ -33,6 +33,6 @@ if toFly:
 	cf1.takeoff(targetHeight = TakeoffHeight, duration = TakeoffTime)
 	time.sleep(TakeoffTime+1)
 
-	cf1.land(targetHeight = 0.0, duration = 2.0)
+	cf1.land(targetHeight = 0.0, duration = TakeoffTime*2)
 	time.sleep(3.0)
 
